@@ -1,0 +1,11 @@
+{
+  // Gemini CLI 用プロファイル (すべて許可モード)
+  "terminal.integrated.profiles.linux": {
+    "Gemini CLI": {
+      "overrideName": true,
+      "icon": "chat-sparkle",
+      "path": "bash",
+      "args": ["-lc", "gemini -i --yolo"]
+    }
+  }
+}

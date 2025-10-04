@@ -1,0 +1,5 @@
+# IMPORTANT: You must change this name to your own plugin name!
+name: MyExamplePlugin
+version: 1.0
+main: mods.kpw.my_example_plugin.Main # This will be replaced by a random package name
+api-version: '1.21'

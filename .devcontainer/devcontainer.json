@@ -1,0 +1,51 @@
+{
+	// Java 21 や基本的なツールがプリインストールされたDockerイメージを使用します。
+	"image": "mcr.microsoft.com/devcontainers/java:21",
+
+	// devcontainer features を使って Maven をインストールします。
+	"features": {
+		"ghcr.io/devcontainers/features/java:1": {
+			"version": "none",
+			"installMaven": "true",
+			"installGradle": "false"
+		},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "lts"
+		}
+	},
+
+	// VSCodeの設定と拡張機能を構成します。
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"vscjava.vscode-java-pack",
+				"redhat.java",
+        		"eamodio.gitlens",
+				"mhutchie.git-graph",
+				"JasonMcGhee.claude-debugs-for-you",
+				"google.geminicodeassist",
+				"google.gemini-cli-vscode-ide-companion"
+			]
+		}
+	},
+
+	// コンテナ作成後に実行するコマンドです。
+	// (実行権限がまだない場合があるのでbashコマンドで実行、スクリプト内でchmod +xしています)
+	"postCreateCommand": "bash scripts/setup_devcontainer.sh",
+
+	// デフォルトの 'vscode' ユーザーとして実行します。
+	"remoteUser": "vscode",
+
+	// 環境変数を設定します (scriptsディレクトリにPATHを通す)。
+	"remoteEnv": {
+		"PATH": "${containerEnv:PATH}:${containerWorkspaceFolder}/scripts"
+	},
+
+	// ポートに名前をつけます。
+	"portsAttributes": {
+		"25565": {
+			"label": "Minecraft",
+			"requireLocalPort": true
+		}
+	}
+}

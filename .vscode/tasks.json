@@ -1,0 +1,63 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Plugin",
+            "type": "shell",
+            "command": "build.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Start Server",
+            "type": "shell",
+            "command": "java -Xmx1G -Xms1G -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -jar paper.jar --nogui",
+            "options": {
+                "cwd": "${workspaceFolder}/run"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "java-debug-server",
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Listening for transport dt_socket at",
+                    "endsPattern": "^Listening for transport dt_socket at"
+                }
+            },
+            "dependsOn": [
+                "Build Plugin",
+            ]
+        },
+        {
+            "label": "Open Port",
+            "type": "shell",
+            "command": "securesharenet",
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "secure-share-net",
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^コントロールURL:",
+                    "endsPattern": "^コントロールURL:"
+                }
+            }
+        },
+        {
+            "label": "Start Server and Open Port",
+            "dependsOn": [
+                "Start Server",
+                "Open Port"
+            ],
+            "dependsOrder": "parallel"
+        }
+    ]
+}
