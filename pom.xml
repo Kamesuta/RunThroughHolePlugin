@@ -3,11 +3,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>mods.kpw</groupId>
-    <artifactId>my_example_plugin</artifactId>
+    <artifactId>runthroughhole</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>MyExamplePlugin</name> <!-- This will be replaced by a random name -->
+    <name>RunThroughHole</name> <!-- This will be replaced by a random name -->
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

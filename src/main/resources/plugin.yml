@@ -1,5 +1,9 @@
 # IMPORTANT: You must change this name to your own plugin name!
-name: MyExamplePlugin
+name: RunThroughHole
 version: 1.0
-main: mods.kpw.my_example_plugin.Main # This will be replaced by a random package name
+main: mods.kpw.runthroughhole.Main # This will be replaced by a random package name
 api-version: '1.21'
+commands:
+  rth:
+    description: Starts or stops the RunThroughHole game.
+    usage: /rth <start|stop>
