@@ -51,6 +51,12 @@ public class Main extends JavaPlugin {
         // プレイヤーを透明化
         player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
 
+        // プレイヤーの視点をX+方向（Yaw -90, Pitch 0）に設定
+        org.bukkit.Location loc = player.getLocation();
+        loc.setYaw(-90f);
+        loc.setPitch(0f);
+        player.teleport(loc);
+
         // BlockDisplayをスポーン
         BlockDisplay display = player.getWorld().spawn(player.getLocation().add(0, 2, 0), BlockDisplay.class);
         display.setBlock(org.bukkit.Material.STONE.createBlockData());
