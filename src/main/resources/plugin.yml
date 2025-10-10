@@ -3,6 +3,7 @@ name: RunThroughHole
 version: 1.0
 main: mods.kpw.runthroughhole.Main # This will be replaced by a random package name
 api-version: '1.21'
+depend: [ProtocolLib]
 commands:
   rth:
     description: Starts or stops the RunThroughHole game.

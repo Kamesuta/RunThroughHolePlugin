@@ -1,7 +1,15 @@
 package mods.kpw.runthroughhole;
 
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+import com.comphenix.protocol.events.ListenerPriority;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.events.PacketEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Player;
@@ -9,20 +17,17 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 public class PlayerGameListener implements Listener {
 
     private final Main plugin;
-    private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
+    private ProtocolManager protocolManager;
 
     // ジェスチャー認識用
     private final float GESTURE_THRESHOLD = 10.0f; // ジェスチャー開始・中央判定の閾値（度）
@@ -34,15 +39,106 @@ public class PlayerGameListener implements Listener {
 
     public PlayerGameListener(Main plugin) {
         this.plugin = plugin;
+        this.protocolManager = ProtocolLibrary.getProtocolManager();
+        setupPacketListeners();
     }
-
-    private PlayerData getOrInitPlayerData(UUID playerId) {
-        return playerDataMap.computeIfAbsent(playerId, k -> new PlayerData());
+    
+    private void setupPacketListeners() {
+        Main mainPlugin = this.plugin;
+        
+        // STEER_VEHICLEパケットリスナー（WASD入力）
+        protocolManager.addPacketListener(new PacketAdapter(mainPlugin, ListenerPriority.NORMAL, PacketType.Play.Client.STEER_VEHICLE) {
+            @Override
+            public void onPacketReceiving(PacketEvent event) {
+                Player player = event.getPlayer();
+                if (player == null) return;
+                
+                PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
+                if (data == null || data.horse == null) return;
+                
+                boolean forward, backward, left, right, jump;
+                
+                try {
+                    PacketContainer packet = event.getPacket();
+                    var input = packet.getStructures().read(0).getBooleans();
+                    forward = input.read(0);   // W
+                    backward = input.read(1);  // S
+                    left = input.read(2);      // A
+                    right = input.read(3);     // D
+                    jump = input.read(4);
+                } catch (Exception e) {
+                    Main.logger.warning("[STEER_VEHICLE] パケット解析エラー: " + e.getMessage());
+                    e.printStackTrace();
+                    return;
+                }
+                
+                // メインスレッドで実行
+                boolean finalForward = forward;
+                boolean finalBackward = backward;
+                boolean finalLeft = left;
+                boolean finalRight = right;
+                boolean finalJump = jump;
+                
+                Bukkit.getScheduler().runTask(mainPlugin, () -> {
+                    try {
+                        handleWASDInput(player, data, finalLeft, finalRight, finalForward, finalBackward, finalJump);
+                    } catch (Exception e) {
+                        Main.logger.severe("[STEER_VEHICLE] handleWASDInput実行エラー: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                });
+            }
+        });
+        
+        // LOOKパケットリスナー（視点回転）
+        protocolManager.addPacketListener(new PacketAdapter(mainPlugin, ListenerPriority.NORMAL,
+                PacketType.Play.Client.LOOK,
+                PacketType.Play.Client.POSITION_LOOK) {
+            @Override
+            public void onPacketReceiving(PacketEvent event) {
+                Player player = event.getPlayer();
+                if (player == null) return;
+                
+                PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
+                if (data == null || data.horse == null) return;
+                
+                float yaw, pitch;
+                
+                try {
+                    yaw = event.getPacket().getFloat().read(0);
+                    pitch = event.getPacket().getFloat().read(1);
+                } catch (Exception e) {
+                    Main.logger.warning("[LOOK] パケット解析エラー: " + e.getMessage());
+                    e.printStackTrace();
+                    return;
+                }
+                
+                // メインスレッドで実行
+                float finalYaw = yaw;
+                float finalPitch = pitch;
+                
+                Bukkit.getScheduler().runTask(mainPlugin, () -> {
+                    try {
+                        handleViewRotation(player, player.getUniqueId(), data.display, data, finalYaw, finalPitch);
+                    } catch (Exception e) {
+                        Main.logger.severe("[LOOK] handleViewRotation実行エラー: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                });
+            }
+        });
+    }
+    
+    public void cleanup() {
+        if (protocolManager != null) {
+            protocolManager.removePacketListeners(plugin);
+        }
     }
 
     // 回転を適用してBlockDisplayを更新する共通メソッド
     private void applyRotation(UUID playerId, BlockDisplay display, Quaternionf newRotation) {
-        PlayerData data = getOrInitPlayerData(playerId);
+        PlayerData data = plugin.getPlayerData(playerId);
+        if (data == null) return;
 
         // 現在のBlockDisplayの回転に新しい回転を適用
         Quaternionf rotation = new Quaternionf()
@@ -75,11 +171,13 @@ public class PlayerGameListener implements Listener {
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
-        BlockDisplay display = plugin.getPlayerDisplays().get(playerId);
-        if (display == null)
+        PlayerData data = plugin.getPlayerData(playerId);
+        if (data == null)
             return; // ゲーム中でないプレイヤーは無視
 
-        PlayerData data = getOrInitPlayerData(playerId);
+        BlockDisplay display = data.display;
+        if (display == null)
+            return;
 
         // クールダウンチェック
         long currentTime = System.currentTimeMillis();
@@ -109,19 +207,44 @@ public class PlayerGameListener implements Listener {
         }
     }
 
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
-        BlockDisplay display = plugin.getPlayerDisplays().get(playerId);
-        if (display == null)
-            return; // ゲーム中でないプレイヤーは無視
-
-        PlayerData data = getOrInitPlayerData(playerId);
-
-        Location currentLocation = player.getLocation();
-        float currentYaw = currentLocation.getYaw();
-        float currentPitch = currentLocation.getPitch();
+    // WASD入力を処理
+    private void handleWASDInput(Player player, PlayerData data, boolean left, boolean right, boolean forward, boolean backward, boolean jump) {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - data.lastMoveTime < COOLDOWN_MS) {
+            return; // クールダウン中
+        }
+        
+        Vector3f gridMove = new Vector3f(0, 0, 0);
+        String direction = "";
+        
+        // 左右移動（A/D）
+        if (left && !right) {
+            gridMove.x = 1; // A
+            direction = "左";
+        } else if (right && !left) {
+            gridMove.x = -1; // D
+            direction = "右";
+        }
+        // 上下移動（W/S）
+        else if (forward && !backward) {
+            gridMove.y = 1; // W
+            direction = "上";
+        } else if (backward && !forward) {
+            gridMove.y = -1; // S
+            direction = "下";
+        }
+        // ジャンプは今後の加速機能用に予約
+        
+        // BlockDisplayを移動
+        if (gridMove.x != 0 || gridMove.y != 0 || gridMove.z != 0) {
+            data.displayGridPosition.add(gridMove);
+            moveBlockDisplay(data.display, data);
+            data.lastMoveTime = currentTime;
+            player.sendMessage(direction + "に移動");
+        }
+    }
+    
+    private void handleViewRotation(Player player, UUID playerId, BlockDisplay display, PlayerData data, float currentYaw, float currentPitch) {
 
         // 中央位置からのずれを計算
         float yawDiff = normalizeAngle(currentYaw - TARGET_YAW);
@@ -216,12 +339,22 @@ public class PlayerGameListener implements Listener {
             player.showTitle(title);
             data.currentGuide = null;
         }
-
-        // BlockDisplayの位置をプレイヤーの頭上に同期（Yaw/Pitchは0にリセット）
-        Location displayLocation = player.getLocation().add(0, 2, 0);
-        displayLocation.setYaw(0);
-        displayLocation.setPitch(0);
-        display.teleport(displayLocation);
+    }
+    
+    private void moveBlockDisplay(BlockDisplay display, PlayerData data) {
+        // グリッド位置からワールド座標を計算
+        Location baseLocation = data.fixedPlayerLocation;
+        double worldX = baseLocation.getX() + data.displayGridPosition.x;
+        double worldY = baseLocation.getY() + 2.0 + data.displayGridPosition.y; // プレイヤーの頭上2ブロック + グリッド位置
+        double worldZ = baseLocation.getZ() + data.displayGridPosition.z;
+        
+        // Interpolationを設定（スムーズな移動）
+        display.setInterpolationDuration(10); // 10tick = 0.5秒
+        display.setInterpolationDelay(0);
+        
+        // BlockDisplayを移動
+        Location newLocation = new Location(baseLocation.getWorld(), worldX, worldY, worldZ, 0, 0);
+        display.teleport(newLocation);
     }
 
     private float normalizeAngle(float angle) {
@@ -231,24 +364,5 @@ public class PlayerGameListener implements Listener {
         if (angle < -180)
             angle += 360;
         return angle;
-    }
-
-    // プレイヤーデータクラス
-    private static class PlayerData {
-        Quaternionf rotation;
-        String currentGuide; // 現在表示中のガイド（null = 非表示）
-        boolean isYawOutside; // Yaw方向でGESTURE_THRESHOLD外にいるかどうか
-        boolean isPitchOutside; // Pitch方向でGESTURE_THRESHOLD外にいるかどうか
-        long lastCommandTime; // 最後にコマンドを実行した時刻
-
-        PlayerData() {
-            // 初期視点に合わせてBlockDisplayの回転も初期化 (X+方向: Yaw -90, Pitch 0)
-            // MinecraftのYawとJOMLのY軸回転の方向を合わせるため+90度
-            this.rotation = new Quaternionf().rotateY((float) Math.toRadians(90.0f));
-            this.currentGuide = null;
-            this.isYawOutside = false;
-            this.isPitchOutside = false;
-            this.lastCommandTime = 0;
-        }
     }
 }
