@@ -51,7 +51,7 @@ public class PlayerGameListener implements Listener {
                 if (player == null) return;
                 
                 PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
-                if (data == null || data.horse == null) return;
+                if (data == null || data.entity == null) return;
                 
                 boolean forward, backward, left, right, jump;
                 
@@ -97,7 +97,7 @@ public class PlayerGameListener implements Listener {
                 if (player == null) return;
                 
                 PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
-                if (data == null || data.horse == null) return;
+                if (data == null || data.entity == null) return;
                 
                 float yaw, pitch;
                 

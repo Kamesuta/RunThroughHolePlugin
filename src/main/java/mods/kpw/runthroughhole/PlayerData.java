@@ -1,11 +1,11 @@
 package mods.kpw.runthroughhole;
 
 import org.bukkit.Location;
-import org.bukkit.entity.Horse;
+import org.bukkit.entity.Entity;
 
 public class PlayerData {
     public PlayerCube cube; // キャラのキューブ
-    public Horse horse;
+    public Entity entity;
     public String currentGuide; // 現在表示中のガイド（null = 非表示）
     public boolean isYawOutside; // Yaw方向でGESTURE_THRESHOLD外にいるかどうか
     public boolean isPitchOutside; // Pitch方向でGESTURE_THRESHOLD外にいるかどうか

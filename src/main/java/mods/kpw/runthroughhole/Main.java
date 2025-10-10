@@ -1,13 +1,16 @@
 package mods.kpw.runthroughhole;
 
 import org.bukkit.Location;
+import org.bukkit.entity.Bat;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Horse;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.joml.Vector3f;
+
+import io.papermc.paper.entity.TeleportFlag;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,8 +43,8 @@ public class Main extends JavaPlugin {
                     // キューブを前進
                     data.cube.autoForward();
                     
-                    // カメラ（馬）をキューブから10マス後ろに追従
-                    if (data.horse != null && data.initialLocation != null) {
+                    // カメラ（椅子）をキューブから10マス後ろに追従
+                    if (data.entity != null && data.initialLocation != null) {
                         updateCameraPosition(data);
                     }
                 }
@@ -95,21 +98,19 @@ public class Main extends JavaPlugin {
         
         // プレイヤーを取得
         Player player = null;
-        if (!data.horse.getPassengers().isEmpty()) {
-            var passenger = data.horse.getPassengers().get(0);
+        if (!data.entity.getPassengers().isEmpty()) {
+            var passenger = data.entity.getPassengers().get(0);
             if (passenger instanceof Player) {
                 player = (Player) passenger;
             }
         }
         
-        // プレイヤーを一旦降ろして、馬をテレポート、再度乗せる
+        // 椅子をテレポート
         if (player != null) {
-            data.horse.eject();
-            data.horse.teleport(newCameraLoc);
-            data.horse.addPassenger(player);
+            data.entity.teleport(newCameraLoc, TeleportFlag.EntityState.RETAIN_PASSENGERS);
         } else {
             // プレイヤーがいない場合は普通にテレポート
-            data.horse.teleport(newCameraLoc);
+            data.entity.teleport(newCameraLoc);
         }
     }
 
@@ -129,19 +130,17 @@ public class Main extends JavaPlugin {
         PlayerData data = getOrCreatePlayerData(playerId);
         data.initialLocation = loc.clone();
 
-        // 透明でNoAIな馬をスポーン
-        Horse horse = (Horse) player.getWorld().spawnEntity(loc, EntityType.HORSE);
-        horse.setInvulnerable(true);
-        horse.setGravity(false);
-        horse.setSilent(true);
-        horse.setAI(false); // AIを無効化して完全に動かなくする
-        horse.setTamed(true); // 飼いならす
-        horse.setAdult(); // 大人の馬
-        horse.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
+        // 透明でNoAIな椅子をスポーン
+        Bat entity = (Bat) player.getWorld().spawnEntity(loc, EntityType.BAT);
+        entity.setInvulnerable(true);
+        entity.setGravity(false);
+        entity.setSilent(true);
+        entity.setAI(false); // AIを無効化して完全に動かなくする
+        entity.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
         
-        // プレイヤーを馬に乗せる
-        horse.addPassenger(player);
-        data.horse = horse;
+        // プレイヤーを椅子に乗せる
+        entity.addPassenger(player);
+        data.entity = entity;
 
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);
@@ -163,11 +162,11 @@ public class Main extends JavaPlugin {
             return;
         }
 
-        // 馬から降りる
-        Horse horse = data.horse;
-        if (horse != null) {
-            horse.eject();
-            horse.remove();
+        // 椅子から降りる
+        Entity entity = data.entity;
+        if (entity != null) {
+            entity.eject();
+            entity.remove();
         }
 
         // キューブを削除
