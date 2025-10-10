@@ -27,11 +27,12 @@ public class PlayerGameListener implements Listener {
     // ジェスチャー認識用
     private final float GESTURE_THRESHOLD = 15.0f; // ジェスチャー開始・中央判定の閾値（度）
     private final float GESTURE_MOVE_LENGTH = 2.0f; // Roll判定の最小移動量（度）
+    private final long COOLDOWN_MS = 500; // クールダウン時間（ミリ秒）
 
     // 目標視点 (Z+方向: Yaw 0, Pitch 0)
     private static final float TARGET_YAW = 0.0f;
     private static final float TARGET_PITCH = 0.0f;
-
+    
     public PlayerGameListener(Main plugin) {
         this.plugin = plugin;
     }
@@ -44,28 +45,31 @@ public class PlayerGameListener implements Listener {
     private void applyRotation(UUID playerId, BlockDisplay display, Quaternionf newRotation) {
         PlayerData data = getOrInitPlayerData(playerId);
 
-        // 現在のBlockDisplayの回転に新しい回転を適用
-        Quaternionf rotation = new Quaternionf()
+            // 現在のBlockDisplayの回転に新しい回転を適用
+            Quaternionf rotation = new Quaternionf()
                 .mul(newRotation)
                 .mul(data.rotation);
         data.rotation = rotation;
 
-        // BlockDisplayのTransformationを更新して回転を同期
-        Transformation transformation = display.getTransformation();
+            // BlockDisplayのTransformationを更新して回転を同期
+            Transformation transformation = display.getTransformation();
 
-        // アニメーション設定
-        display.setInterpolationDuration(5); // 5ティックでアニメーション
-        display.setInterpolationDelay(0); // 遅延なし
+            // アニメーション設定
+            display.setInterpolationDuration(5); // 5ティックでアニメーション
+            display.setInterpolationDelay(0); // 遅延なし
+            
+            // BlockDisplayの中心オフセット
+            Vector3f offset = new Vector3f(-0.5f, -0.5f, -0.5f);
+            offset.rotate(rotation); // 回転を考慮してオフセットを回転
+            
+            // Transformationに設定
+            transformation.getLeftRotation().set(rotation);
+            transformation.getTranslation().set(offset);
 
-        // BlockDisplayの中心オフセット
-        Vector3f offset = new Vector3f(-0.5f, -0.5f, -0.5f);
-        offset.rotate(rotation); // 回転を考慮してオフセットを回転
-
-        // Transformationに設定
-        transformation.getLeftRotation().set(rotation);
-        transformation.getTranslation().set(offset);
-
-        display.setTransformation(transformation);
+            display.setTransformation(transformation);
+            
+        // クールダウンタイムスタンプを更新
+        data.lastCommandTime = System.currentTimeMillis();
     }
 
     @EventHandler
@@ -88,51 +92,52 @@ public class PlayerGameListener implements Listener {
 
         float totalDiff = (float) Math.sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff);
 
+        // クールダウンチェック
+        long currentTime = System.currentTimeMillis();
+        boolean isInCooldown = (currentTime - data.lastCommandTime) < COOLDOWN_MS;
+
         // GESTURE_THRESHOLD外に出たら、X印で4分割した領域でYaw/Pitch回転
         // ただし、履歴が3つ以上ある場合はRoll判定を優先するため許可
         if (totalDiff > GESTURE_THRESHOLD) {
-            // 履歴が3つ未満の場合のみYaw/Pitch回転を実行
-            if (data.directionHistory.size() < 3) {
-                // 外に出ていない状態から外に出た場合のみコマンド実行
-                if (!data.isOutside) {
-                    // X印で4分割：yawDiffとpitchDiffの絶対値を比較
-                    if (Math.abs(yawDiff) > Math.abs(pitchDiff)) {
-                        // Yaw方向が優勢
-                        Quaternionf newRotation = new Quaternionf();
-                        if (yawDiff > 0) { // 右
-                            newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, 1, 0);
-                            player.sendMessage("右に回転（Yaw軸）");
-                        } else { // 左
-                            newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 1, 0);
-                            player.sendMessage("左に回転（Yaw軸）");
-                        }
-                        applyRotation(playerId, display, newRotation);
-                        data.resetGesture();
-                    } else {
-                        // Pitch方向が優勢
-                        Quaternionf newRotation = new Quaternionf();
-                        if (pitchDiff > 0) { // 下
-                            newRotation.rotateAxis((float) Math.toRadians(-90.0f), -1, 0, 0);
-                            player.sendMessage("下に回転（Pitch軸）");
-                        } else { // 上
-                            newRotation.rotateAxis((float) Math.toRadians(90.0f), -1, 0, 0);
-                            player.sendMessage("上に回転（Pitch軸）");
-                        }
-                        applyRotation(playerId, display, newRotation);
-                        data.resetGesture();
+            // クールダウン中でなく、履歴が3つ未満で、外に出ていない状態から外に出た場合のみコマンド実行
+            if (!isInCooldown && data.directionHistory.size() < 3 && !data.isOutside) {
+                // X印で4分割：yawDiffとpitchDiffの絶対値を比較
+                if (Math.abs(yawDiff) > Math.abs(pitchDiff)) {
+                    // Yaw方向が優勢
+                    Quaternionf newRotation = new Quaternionf();
+                    if (yawDiff > 0) { // 右
+                        newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, 1, 0);
+                        player.sendMessage("右に回転（Yaw軸）");
+                    } else { // 左
+                        newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 1, 0);
+                        player.sendMessage("左に回転（Yaw軸）");
                     }
-                    // 外に出た状態にする
-                    data.isOutside = true;
+                    applyRotation(playerId, display, newRotation);
+                    data.resetGesture();
+                } else {
+                    // Pitch方向が優勢
+                    Quaternionf newRotation = new Quaternionf();
+                    if (pitchDiff > 0) { // 下
+                        newRotation.rotateAxis((float) Math.toRadians(-90.0f), -1, 0, 0);
+                        player.sendMessage("下に回転（Pitch軸）");
+                    } else { // 上
+                        newRotation.rotateAxis((float) Math.toRadians(90.0f), -1, 0, 0);
+                        player.sendMessage("上に回転（Pitch軸）");
+                    }
+                    applyRotation(playerId, display, newRotation);
+                    data.resetGesture();
                 }
+                // 外に出た状態にする
+                data.isOutside = true;
             }
-            // 履歴が3つ以上の場合は何もしない（Roll判定を続行）
+            // 履歴が3つ以上の場合やクールダウン中は何もしない（Roll判定を続行）
         } else {
             // GESTURE_THRESHOLD内に戻ったらフラグをリセット
             data.isOutside = false;
         }
 
-        // Roll判定：GESTURE_THRESHOLD内、または履歴が3つ以上の場合
-        if (totalDiff <= GESTURE_THRESHOLD || data.directionHistory.size() >= 3) {
+        // Roll判定：GESTURE_THRESHOLD内、または履歴が3つ以上の場合（クールダウン中は除く）
+        if ((totalDiff <= GESTURE_THRESHOLD || data.directionHistory.size() >= 3) && !isInCooldown) {
             // 移動方向を記録してRoll判定
             if (data.lastYaw == null || data.lastPitch == null) {
                 // 初回
@@ -326,6 +331,7 @@ public class PlayerGameListener implements Listener {
         Float lastPitch;
         boolean isShowingGuide;
         boolean isOutside; // GESTURE_THRESHOLD外にいるかどうか
+        long lastCommandTime; // 最後にコマンドを実行した時刻
 
         PlayerData() {
             // 初期視点に合わせてBlockDisplayの回転も初期化 (X+方向: Yaw -90, Pitch 0)
@@ -336,6 +342,7 @@ public class PlayerGameListener implements Listener {
             this.lastPitch = null;
             this.isShowingGuide = false;
             this.isOutside = false;
+            this.lastCommandTime = 0;
         }
 
         void resetGesture() {
