@@ -25,7 +25,7 @@ public class PlayerGameListener implements Listener {
     private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
 
     // ジェスチャー認識用
-    private final float GESTURE_THRESHOLD = 5.0f; // ジェスチャー開始・中央判定の閾値（度）
+    private final float GESTURE_THRESHOLD = 10.0f; // ジェスチャー開始・中央判定の閾値（度）
     private final long COOLDOWN_MS = 200; // クールダウン時間（ミリ秒）
 
     // 目標視点 (Z+方向: Yaw 0, Pitch 0)
@@ -127,67 +127,94 @@ public class PlayerGameListener implements Listener {
         float yawDiff = normalizeAngle(currentYaw - TARGET_YAW);
         float pitchDiff = normalizeAngle(currentPitch - TARGET_PITCH);
 
-        float totalDiff = (float) Math.sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff);
-
         // クールダウンチェック
         long currentTime = System.currentTimeMillis();
         boolean isInCooldown = (currentTime - data.lastCommandTime) < COOLDOWN_MS;
 
-        // GESTURE_THRESHOLD外に出たら、X印で4分割した領域でYaw/Pitch回転
-        if (totalDiff > GESTURE_THRESHOLD) {
-            // クールダウン中でなく、外に出ていない状態から外に出た場合のみコマンド実行
-            if (!isInCooldown && !data.isOutside) {
-                // X印で4分割：yawDiffとpitchDiffの絶対値を比較
-                if (Math.abs(yawDiff) > Math.abs(pitchDiff)) {
-                    // Yaw方向が優勢
-                    Quaternionf newRotation = new Quaternionf();
-                    if (yawDiff > 0) { // 右
-                        newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, 1, 0);
-                        player.sendMessage("右に回転（Yaw軸）");
-                    } else { // 左
-                        newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 1, 0);
-                        player.sendMessage("左に回転（Yaw軸）");
-                    }
-                    applyRotation(playerId, display, newRotation);
-                } else {
-                    // Pitch方向が優勢
-                    Quaternionf newRotation = new Quaternionf();
-                    if (pitchDiff > 0) { // 下
-                        newRotation.rotateAxis((float) Math.toRadians(-90.0f), -1, 0, 0);
-                        player.sendMessage("下に回転（Pitch軸）");
-                    } else { // 上
-                        newRotation.rotateAxis((float) Math.toRadians(90.0f), -1, 0, 0);
-                        player.sendMessage("上に回転（Pitch軸）");
-                    }
-                    applyRotation(playerId, display, newRotation);
-                }
-                // 外に出た状態にする
-                data.isOutside = true;
+        // 左右（Yaw）と上下（Pitch）で独立して判定
+        boolean isYawOutside = Math.abs(yawDiff) > GESTURE_THRESHOLD;
+        boolean isPitchOutside = Math.abs(pitchDiff) > GESTURE_THRESHOLD;
+
+        // Yaw回転判定
+        if (isYawOutside && !isInCooldown && !data.isYawOutside) {
+            Quaternionf newRotation = new Quaternionf();
+            if (yawDiff > 0) { // 右
+                newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, 1, 0);
+                player.sendMessage("右に回転（Yaw軸）");
+            } else { // 左
+                newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 1, 0);
+                player.sendMessage("左に回転（Yaw軸）");
             }
-        } else {
-            // GESTURE_THRESHOLD内に戻ったらフラグをリセット
-            data.isOutside = false;
+            applyRotation(playerId, display, newRotation);
+            data.isYawOutside = true;
+        } else if (!isYawOutside) {
+            data.isYawOutside = false;
         }
 
-        // 基準位置にいる間はガイドを常に表示、離れたら即座に非表示
-        boolean isAtCenter = totalDiff < GESTURE_THRESHOLD;
+        // Pitch回転判定
+        if (isPitchOutside && !isInCooldown && !data.isPitchOutside) {
+            Quaternionf newRotation = new Quaternionf();
+            if (pitchDiff > 0) { // 下
+                newRotation.rotateAxis((float) Math.toRadians(-90.0f), -1, 0, 0);
+                player.sendMessage("下に回転（Pitch軸）");
+            } else { // 上
+                newRotation.rotateAxis((float) Math.toRadians(90.0f), -1, 0, 0);
+                player.sendMessage("上に回転（Pitch軸）");
+            }
+            applyRotation(playerId, display, newRotation);
+            data.isPitchOutside = true;
+        } else if (!isPitchOutside) {
+            data.isPitchOutside = false;
+        }
 
-        if (isAtCenter && !data.isShowingGuide) {
-            // 基準位置に入ったらガイドを表示（実質無限に表示し続ける）
+        // ガイド表示：罫線を使った9パターン
+        String currentGuide = null;
+        
+        if (!isYawOutside && !isPitchOutside) {
+            // 上下左右が基準値内
+            currentGuide = "┼";
+        } else if (!isYawOutside && pitchDiff < 0) {
+            // 左右が基準値内、上に外れている
+            currentGuide = "┬";
+        } else if (!isYawOutside && pitchDiff > 0) {
+            // 左右が基準値内、下に外れている
+            currentGuide = "┴";
+        } else if (yawDiff < 0 && !isPitchOutside) {
+            // 左に外れている、上下が基準値内
+            currentGuide = "├";
+        } else if (yawDiff > 0 && !isPitchOutside) {
+            // 右に外れている、上下が基準値内
+            currentGuide = "┤";
+        } else if (yawDiff < 0 && pitchDiff < 0) {
+            // 左上に外れている
+            currentGuide = "┌";
+        } else if (yawDiff > 0 && pitchDiff < 0) {
+            // 右上に外れている
+            currentGuide = "┐";
+        } else if (yawDiff < 0 && pitchDiff > 0) {
+            // 左下に外れている
+            currentGuide = "└";
+        } else if (yawDiff > 0 && pitchDiff > 0) {
+            // 右下に外れている
+            currentGuide = "┘";
+        }
+        
+        // ガイドが変更された場合のみ更新
+        if (currentGuide != null && !currentGuide.equals(data.currentGuide)) {
             Title title = Title.title(
                     Component.empty(),
-                    Component.text("←↑↓→"),
+                    Component.text(currentGuide),
                     Title.Times.times(Duration.ofMillis(0), Duration.ofDays(1), Duration.ofMillis(0)));
             player.showTitle(title);
-            data.isShowingGuide = true;
-        } else if (!isAtCenter && data.isShowingGuide) {
-            // 基準位置から離れたらガイドを即座に非表示
+            data.currentGuide = currentGuide;
+        } else if (currentGuide == null && data.currentGuide != null) {
+            // ガイドを非表示
             Title title = Title.title(
                     Component.empty(),
                     Component.empty(),
                     Title.Times.times(Duration.ofMillis(0), Duration.ofMillis(0), Duration.ofMillis(0)));
             player.showTitle(title);
-            data.isShowingGuide = false;
+            data.currentGuide = null;
         }
 
         // BlockDisplayの位置をプレイヤーの頭上に同期（Yaw/Pitchは0にリセット）
@@ -209,16 +236,18 @@ public class PlayerGameListener implements Listener {
     // プレイヤーデータクラス
     private static class PlayerData {
         Quaternionf rotation;
-        boolean isShowingGuide;
-        boolean isOutside; // GESTURE_THRESHOLD外にいるかどうか
+        String currentGuide; // 現在表示中のガイド（null = 非表示）
+        boolean isYawOutside; // Yaw方向でGESTURE_THRESHOLD外にいるかどうか
+        boolean isPitchOutside; // Pitch方向でGESTURE_THRESHOLD外にいるかどうか
         long lastCommandTime; // 最後にコマンドを実行した時刻
 
         PlayerData() {
             // 初期視点に合わせてBlockDisplayの回転も初期化 (X+方向: Yaw -90, Pitch 0)
             // MinecraftのYawとJOMLのY軸回転の方向を合わせるため+90度
             this.rotation = new Quaternionf().rotateY((float) Math.toRadians(90.0f));
-            this.isShowingGuide = false;
-            this.isOutside = false;
+            this.currentGuide = null;
+            this.isYawOutside = false;
+            this.isPitchOutside = false;
             this.lastCommandTime = 0;
         }
     }
