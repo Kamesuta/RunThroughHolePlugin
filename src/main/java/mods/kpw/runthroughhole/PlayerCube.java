@@ -171,6 +171,38 @@ public class PlayerCube {
         }
     }
     
+    // 衝突検出：キューブがMinecraftのブロックと衝突しているかチェック
+    public boolean checkCollision() {
+        for (CubeBlock block : blocks) {
+            // ブロックのワールド座標を計算
+            Location blockWorldLoc = getBlockWorldLocation(block);
+            
+            // その座標のブロックをチェック
+            Material material = world.getBlockAt(blockWorldLoc).getType();
+            if (material != Material.AIR && material != Material.CAVE_AIR && material != Material.VOID_AIR) {
+                return true; // 衝突あり
+            }
+        }
+        return false; // 衝突なし
+    }
+    
+    // 各ブロックのワールド座標を計算
+    private Location getBlockWorldLocation(CubeBlock block) {
+        // ブロックのローカルオフセットに回転を適用
+        Vector3f rotatedOffset = new Vector3f(block.offset);
+        rotatedOffset.rotate(rotation);
+        
+        // ワールド座標を計算
+        double worldX = baseLocation.getX() + gridPosition.x + rotatedOffset.x;
+        double worldY = baseLocation.getY() + 2 + gridPosition.y + rotatedOffset.y;
+        double worldZ = baseLocation.getZ() + gridPosition.z + forwardProgress + rotatedOffset.z;
+        
+        return new Location(world, 
+            Math.floor(worldX), 
+            Math.floor(worldY), 
+            Math.floor(worldZ));
+    }
+    
     // クリーンアップ
     public void remove() {
         for (CubeBlock block : blocks) {

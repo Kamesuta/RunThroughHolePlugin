@@ -15,6 +15,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -144,6 +145,24 @@ public class PlayerGameListener implements Listener {
         data.lastCommandTime = System.currentTimeMillis();
     }
 
+    @EventHandler
+    public void onVehicleExit(VehicleExitEvent event) {
+        // プレイヤーが椅子から降りた時
+        if (event.getExited() instanceof Player) {
+            Player player = (Player) event.getExited();
+            PlayerData data = plugin.getPlayerData(player.getUniqueId());
+            
+            // ゲーム中のプレイヤーが椅子から降りようとした場合
+            if (data != null && data.entity != null && event.getVehicle().equals(data.entity)) {
+                // イベントをキャンセルして降りれないようにする
+                event.setCancelled(true);
+                
+                // ゲームオーバー
+                plugin.gameOver(player, "椅子から降りました！");
+            }
+        }
+    }
+    
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();

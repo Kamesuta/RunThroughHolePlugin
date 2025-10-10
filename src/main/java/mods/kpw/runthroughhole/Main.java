@@ -10,7 +10,13 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.joml.Vector3f;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.title.Title;
+
 import io.papermc.paper.entity.TeleportFlag;
+
+import java.time.Duration;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +48,16 @@ public class Main extends JavaPlugin {
                 if (data.cube != null) {
                     // キューブを前進
                     data.cube.autoForward();
+                    
+                    // 衝突チェック
+                    if (data.cube.checkCollision()) {
+                        // プレイヤーを取得
+                        Player player = getPlayerFromData(data);
+                        if (player != null) {
+                            gameOver(player, "ブロックに衝突しました！");
+                        }
+                        continue;
+                    }
                     
                     // カメラ（椅子）をキューブから10マス後ろに追従
                     if (data.entity != null && data.initialLocation != null) {
@@ -80,6 +96,36 @@ public class Main extends JavaPlugin {
     
     public PlayerGameListener getGameListener() {
         return gameListener;
+    }
+    
+    // PlayerDataからPlayerを取得するヘルパーメソッド
+    private Player getPlayerFromData(PlayerData data) {
+        if (data.entity != null && !data.entity.getPassengers().isEmpty()) {
+            var passenger = data.entity.getPassengers().get(0);
+            if (passenger instanceof Player) {
+                return (Player) passenger;
+            }
+        }
+        return null;
+    }
+    
+    // ゲームオーバー処理
+    public void gameOver(Player player, String reason) {
+        // タイトルに「GAME OVER」を表示
+        Title title = Title.title(
+            Component.text("GAME OVER", NamedTextColor.RED),
+            Component.text(reason, NamedTextColor.YELLOW),
+            Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500))
+        );
+        player.showTitle(title);
+        
+        // メッセージを送信
+        player.sendMessage(Component.text("ゲームオーバー: " + reason, NamedTextColor.RED));
+        
+        // 少し遅延してゲームを終了
+        getServer().getScheduler().runTaskLater(this, () -> {
+            stopGame(player);
+        }, 60L); // 3秒後（60tick）
     }
     
     // カメラ位置を更新（キューブから10マス後ろ）
