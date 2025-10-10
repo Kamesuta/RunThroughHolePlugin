@@ -10,14 +10,11 @@ import com.comphenix.protocol.events.PacketEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -119,7 +116,7 @@ public class PlayerGameListener implements Listener {
                 
                 Bukkit.getScheduler().runTask(mainPlugin, () -> {
                     try {
-                        handleViewRotation(player, player.getUniqueId(), data.display, data, finalYaw, finalPitch);
+                        handleViewRotation(player, player.getUniqueId(), data, finalYaw, finalPitch);
                     } catch (Exception e) {
                         Main.logger.severe("[LOOK] handleViewRotation実行エラー: " + e.getMessage());
                         e.printStackTrace();
@@ -136,32 +133,12 @@ public class PlayerGameListener implements Listener {
     }
 
     // 回転を適用してBlockDisplayを更新する共通メソッド
-    private void applyRotation(UUID playerId, BlockDisplay display, Quaternionf newRotation) {
+    private void applyRotation(UUID playerId, Quaternionf newRotation) {
         PlayerData data = plugin.getPlayerData(playerId);
-        if (data == null) return;
+        if (data == null || data.cube == null) return;
 
-        // 現在のBlockDisplayの回転に新しい回転を適用
-        Quaternionf rotation = new Quaternionf()
-                .mul(newRotation)
-                .mul(data.rotation);
-        data.rotation = rotation;
-
-        // BlockDisplayのTransformationを更新して回転を同期
-        Transformation transformation = display.getTransformation();
-
-        // アニメーション設定
-        display.setInterpolationDuration(5); // 5ティックでアニメーション
-        display.setInterpolationDelay(0); // 遅延なし
-
-        // BlockDisplayの中心オフセット
-        Vector3f offset = new Vector3f(-0.5f, -0.5f, -0.5f);
-        offset.rotate(rotation); // 回転を考慮してオフセットを回転
-
-        // Transformationに設定
-        transformation.getLeftRotation().set(rotation);
-        transformation.getTranslation().set(offset);
-
-        display.setTransformation(transformation);
+        // キューブに回転を適用
+        data.cube.applyRotation(newRotation);
         
         // クールダウンタイムスタンプを更新
         data.lastCommandTime = System.currentTimeMillis();
@@ -172,12 +149,8 @@ public class PlayerGameListener implements Listener {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
         PlayerData data = plugin.getPlayerData(playerId);
-        if (data == null)
+        if (data == null || data.cube == null)
             return; // ゲーム中でないプレイヤーは無視
-
-        BlockDisplay display = data.display;
-        if (display == null)
-            return;
 
         // クールダウンチェック
         long currentTime = System.currentTimeMillis();
@@ -203,7 +176,7 @@ public class PlayerGameListener implements Listener {
         }
 
         if (shouldRotate) {
-            applyRotation(playerId, display, newRotation);
+            applyRotation(playerId, newRotation);
         }
     }
 
@@ -235,16 +208,15 @@ public class PlayerGameListener implements Listener {
         }
         // ジャンプは今後の加速機能用に予約
         
-        // BlockDisplayを移動
+        // キューブを移動
         if (gridMove.x != 0 || gridMove.y != 0 || gridMove.z != 0) {
-            data.displayGridPosition.add(gridMove);
-            moveBlockDisplay(data.display, data);
+            data.cube.move(gridMove);
             data.lastMoveTime = currentTime;
             player.sendMessage(direction + "に移動");
         }
     }
     
-    private void handleViewRotation(Player player, UUID playerId, BlockDisplay display, PlayerData data, float currentYaw, float currentPitch) {
+    private void handleViewRotation(Player player, UUID playerId, PlayerData data, float currentYaw, float currentPitch) {
 
         // 中央位置からのずれを計算
         float yawDiff = normalizeAngle(currentYaw - TARGET_YAW);
@@ -268,7 +240,7 @@ public class PlayerGameListener implements Listener {
                 newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 1, 0);
                 player.sendMessage("左に回転（Yaw軸）");
             }
-            applyRotation(playerId, display, newRotation);
+            applyRotation(playerId, newRotation);
             data.isYawOutside = true;
         } else if (!isYawOutside) {
             data.isYawOutside = false;
@@ -284,7 +256,7 @@ public class PlayerGameListener implements Listener {
                 newRotation.rotateAxis((float) Math.toRadians(90.0f), -1, 0, 0);
                 player.sendMessage("上に回転（Pitch軸）");
             }
-            applyRotation(playerId, display, newRotation);
+            applyRotation(playerId, newRotation);
             data.isPitchOutside = true;
         } else if (!isPitchOutside) {
             data.isPitchOutside = false;
@@ -341,22 +313,6 @@ public class PlayerGameListener implements Listener {
         }
     }
     
-    private void moveBlockDisplay(BlockDisplay display, PlayerData data) {
-        // グリッド位置からワールド座標を計算
-        Location baseLocation = data.fixedPlayerLocation;
-        double worldX = baseLocation.getX() + data.displayGridPosition.x;
-        double worldY = baseLocation.getY() + 2.0 + data.displayGridPosition.y; // プレイヤーの頭上2ブロック + グリッド位置
-        double worldZ = baseLocation.getZ() + data.displayGridPosition.z;
-        
-        // Interpolationを設定（スムーズな移動）
-        display.setInterpolationDuration(10); // 10tick = 0.5秒
-        display.setInterpolationDelay(0);
-        
-        // BlockDisplayを移動
-        Location newLocation = new Location(baseLocation.getWorld(), worldX, worldY, worldZ, 0, 0);
-        display.teleport(newLocation);
-    }
-
     private float normalizeAngle(float angle) {
         angle = angle % 360;
         if (angle > 180)

@@ -1,7 +1,6 @@
 package mods.kpw.runthroughhole;
 
 import org.bukkit.Location;
-import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Horse;
 import org.bukkit.entity.Player;
@@ -97,15 +96,8 @@ public class Main extends JavaPlugin {
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);
 
-        // BlockDisplayをスポーン（ボートの上2ブロック）
-        BlockDisplay display = player.getWorld().spawn(loc.clone().add(0, 2, 0), BlockDisplay.class);
-        display.setBlock(org.bukkit.Material.FLETCHING_TABLE.createBlockData());
-        
-        // Interpolationの初期設定
-        display.setInterpolationDuration(10); // 10tick = 0.5秒でスムーズに移動
-        display.setInterpolationDelay(0);
-        
-        data.display = display;
+        // キャラのキューブを作成
+        data.cube = new PlayerCube(player.getWorld(), loc.clone());
 
         player.sendMessage("ゲームを開始しました！WASDで上下左右に移動できます。");
         getLogger().info(player.getName() + "がゲームを開始しました。");
@@ -128,10 +120,9 @@ public class Main extends JavaPlugin {
             horse.remove();
         }
 
-        // BlockDisplayを削除
-        BlockDisplay display = data.display;
-        if (display != null) {
-            display.remove();
+        // キューブを削除
+        if (data.cube != null) {
+            data.cube.remove();
         }
 
         player.sendMessage("ゲームを終了しました。");
