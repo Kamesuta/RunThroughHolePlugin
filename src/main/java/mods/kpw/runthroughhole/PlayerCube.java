@@ -12,9 +12,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PlayerCube {
-    // 複数のBlockDisplayを管理
-    public List<BlockDisplay> displays;
-    public List<Vector3f> blockOffsets; // 各ブロックの相対位置（ローカル座標）
+    // BlockDisplayとオフセットをまとめて管理する内部クラス
+    private static class CubeBlock {
+        BlockDisplay display;
+        Vector3f offset; // ローカル座標での相対位置
+        
+        CubeBlock(BlockDisplay display, Vector3f offset) {
+            this.display = display;
+            this.offset = offset;
+        }
+    }
+    
+    // 複数のブロックを管理
+    private List<CubeBlock> blocks;
     
     public Quaternionf rotation;
     public Vector3f gridPosition; // グリッド位置（ブロック単位）
@@ -37,8 +47,7 @@ public class PlayerCube {
         this.world = world;
         this.baseLocation = baseLocation;
         this.gridPosition = new Vector3f(0, 0, 0);
-        this.displays = new ArrayList<>();
-        this.blockOffsets = new ArrayList<>();
+        this.blocks = new ArrayList<>();
         
         // 初期視点に合わせてBlockDisplayの回転も初期化 (Z+方向: Yaw 0, Pitch 0)
         this.rotation = new Quaternionf().rotateY((float) Math.toRadians(90.0f));
@@ -57,12 +66,11 @@ public class PlayerCube {
     
     // 3x3x3配列に基づいてBlockDisplayを生成
     private void createDisplays() {
-        // 既存のdisplayをクリア
-        for (BlockDisplay display : displays) {
-            display.remove();
+        // 既存のブロックをクリア
+        for (CubeBlock block : blocks) {
+            block.display.remove();
         }
-        displays.clear();
-        blockOffsets.clear();
+        blocks.clear();
         
         // blockShape配列をスキャンして、trueのブロックに対してDisplayを作成
         for (int x = 0; x < 3; x++) {
@@ -71,7 +79,6 @@ public class PlayerCube {
                     if (blockShape[x][y][z]) {
                         // 相対オフセット（中心を(1,1,1)として、-1～1の範囲）
                         Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
-                        blockOffsets.add(offset);
                         
                         // BlockDisplayをスポーン（基準位置の上2ブロック）
                         Location spawnLoc = baseLocation.clone().add(0, 2, 0);
@@ -82,7 +89,8 @@ public class PlayerCube {
                         display.setInterpolationDuration(10); // 10tick = 0.5秒でスムーズに移動
                         display.setInterpolationDelay(0);
                         
-                        displays.add(display);
+                        // Blockオブジェクトを作成してリストに追加
+                        blocks.add(new CubeBlock(display, offset));
                     }
                 }
             }
@@ -114,10 +122,10 @@ public class PlayerCube {
     private void updateZPosition() {
         double worldZ = baseLocation.getZ() + gridPosition.z + forwardProgress;
         
-        for (BlockDisplay display : displays) {
-            Location currentLoc = display.getLocation();
+        for (CubeBlock block : blocks) {
+            Location currentLoc = block.display.getLocation();
             currentLoc.setZ(worldZ);
-            display.teleport(currentLoc);
+            block.display.teleport(currentLoc);
         }
     }
     
@@ -135,18 +143,15 @@ public class PlayerCube {
     // BlockDisplayのTransformationを更新（XY位置と回転）
     private void updateTransformation() {
         // 各BlockDisplayを更新
-        for (int i = 0; i < displays.size(); i++) {
-            BlockDisplay display = displays.get(i);
-            Vector3f blockOffset = blockOffsets.get(i);
-            
-            Transformation transformation = display.getTransformation();
+        for (CubeBlock block : blocks) {
+            Transformation transformation = block.display.getTransformation();
             
             // アニメーション設定
-            display.setInterpolationDuration(5); // 5tick = 0.25秒
-            display.setInterpolationDelay(0);
+            block.display.setInterpolationDuration(5); // 5tick = 0.25秒
+            block.display.setInterpolationDelay(0);
             
             // ブロックのローカルオフセットに回転を適用
-            Vector3f rotatedOffset = new Vector3f(blockOffset);
+            Vector3f rotatedOffset = new Vector3f(block.offset);
             rotatedOffset.rotate(rotation);
             
             // BlockDisplayの中心オフセット（-0.5, -0.5, -0.5）に回転を適用
@@ -162,19 +167,18 @@ public class PlayerCube {
             transformation.getLeftRotation().set(rotation);
             transformation.getTranslation().set(translation);
             
-            display.setTransformation(transformation);
+            block.display.setTransformation(transformation);
         }
     }
     
     // クリーンアップ
     public void remove() {
-        for (BlockDisplay display : displays) {
-            if (display != null) {
-                display.remove();
+        for (CubeBlock block : blocks) {
+            if (block.display != null) {
+                block.display.remove();
             }
         }
-        displays.clear();
-        blockOffsets.clear();
+        blocks.clear();
     }
 }
 
