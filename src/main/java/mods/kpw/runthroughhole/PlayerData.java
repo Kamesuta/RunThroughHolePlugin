@@ -11,8 +11,8 @@ public class PlayerData {
     public boolean isPitchOutside; // Pitch方向でGESTURE_THRESHOLD外にいるかどうか
     public long lastCommandTime; // 最後にコマンドを実行した時刻
     
-    // WASD移動用
-    public Location fixedPlayerLocation; // プレイヤーの固定位置
+    // 位置管理
+    public Location initialLocation; // ゲーム開始時の初期位置（不変）
     public long lastMoveTime; // 最後に移動した時刻
 
     public PlayerData() {

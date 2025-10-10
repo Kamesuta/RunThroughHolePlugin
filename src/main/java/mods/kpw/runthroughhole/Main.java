@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.joml.Vector3f;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +32,21 @@ public class Main extends JavaPlugin {
         // イベントリスナーの登録
         gameListener = new PlayerGameListener(this);
         getServer().getPluginManager().registerEvents(gameListener, this);
+        
+        // 自動前進タスクを開始（1tickごと）
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            for (PlayerData data : playerDataMap.values()) {
+                if (data.cube != null) {
+                    // キューブを前進
+                    data.cube.autoForward();
+                    
+                    // カメラ（馬）をキューブから10マス後ろに追従
+                    if (data.horse != null && data.initialLocation != null) {
+                        updateCameraPosition(data);
+                    }
+                }
+            }
+        }, 1L, 1L); // 1tick遅延、1tickごとに実行
     }
 
     @Override
@@ -62,6 +78,40 @@ public class Main extends JavaPlugin {
     public PlayerGameListener getGameListener() {
         return gameListener;
     }
+    
+    // カメラ位置を更新（キューブから10マス後ろ）
+    private void updateCameraPosition(PlayerData data) {
+        Vector3f cubeGridPos = data.cube.gridPosition;
+        float cubeForwardProgress = data.cube.getForwardProgress();
+        
+        // キューブのZ位置から10マス後ろ
+        double cameraZ = cubeGridPos.z + cubeForwardProgress - 10.0;
+        
+        // 初期位置を基準に新しい位置を計算
+        Location newCameraLoc = data.initialLocation.clone();
+        newCameraLoc.add(0, 0, cameraZ);
+        newCameraLoc.setYaw(0f);
+        newCameraLoc.setPitch(0f);
+        
+        // プレイヤーを取得
+        Player player = null;
+        if (!data.horse.getPassengers().isEmpty()) {
+            var passenger = data.horse.getPassengers().get(0);
+            if (passenger instanceof Player) {
+                player = (Player) passenger;
+            }
+        }
+        
+        // プレイヤーを一旦降ろして、馬をテレポート、再度乗せる
+        if (player != null) {
+            data.horse.eject();
+            data.horse.teleport(newCameraLoc);
+            data.horse.addPassenger(player);
+        } else {
+            // プレイヤーがいない場合は普通にテレポート
+            data.horse.teleport(newCameraLoc);
+        }
+    }
 
     // ゲーム開始処理
     public void startGame(Player player) {
@@ -77,7 +127,7 @@ public class Main extends JavaPlugin {
 
         // PlayerDataを作成
         PlayerData data = getOrCreatePlayerData(playerId);
-        data.fixedPlayerLocation = loc.clone();
+        data.initialLocation = loc.clone();
 
         // 透明でNoAIな馬をスポーン
         Horse horse = (Horse) player.getWorld().spawnEntity(loc, EntityType.HORSE);

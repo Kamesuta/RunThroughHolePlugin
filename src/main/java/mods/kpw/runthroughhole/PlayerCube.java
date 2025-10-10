@@ -15,6 +15,14 @@ public class PlayerCube {
     
     private Location baseLocation; // 基準位置（プレイヤーの固定位置）
     
+    // 自動前進用
+    private static final float FORWARD_SPEED = 0.05f; // 1tickあたりの前進量（ブロック単位）
+    private float forwardProgress = 0f; // 前進の進行度（0～1で1マス分）
+    
+    public float getForwardProgress() {
+        return forwardProgress;
+    }
+    
     public PlayerCube(World world, Location baseLocation) {
         this.baseLocation = baseLocation;
         this.gridPosition = new Vector3f(0, 0, 0);
@@ -31,10 +39,34 @@ public class PlayerCube {
         this.display.setInterpolationDelay(0);
     }
     
-    // グリッド位置を移動
+    // グリッド位置を移動（XY方向のみ）
     public void move(Vector3f delta) {
         this.gridPosition.add(delta);
+        // XY移動はTransformationで更新（Zは触らない）
         updateTransformation();
+    }
+    
+    // 自動前進（毎tick呼び出される）- Z軸のテレポートのみ
+    public void autoForward() {
+        forwardProgress += FORWARD_SPEED;
+        
+        // 1マス分進んだらグリッド位置を更新
+        if (forwardProgress >= 1.0f) {
+            gridPosition.z += 1;
+            forwardProgress -= 1.0f;
+        }
+        
+        // Z位置のみテレポートで更新（毎tick）
+        updateZPosition();
+    }
+    
+    // Z軸位置のみテレポートで更新
+    private void updateZPosition() {
+        Location currentLoc = display.getLocation();
+        double worldZ = baseLocation.getZ() + gridPosition.z + forwardProgress;
+        
+        currentLoc.setZ(worldZ);
+        display.teleport(currentLoc);
     }
     
     // 回転を適用
@@ -48,21 +80,21 @@ public class PlayerCube {
         updateTransformation();
     }
     
-    // BlockDisplayのTransformationを更新（位置と回転）
+    // BlockDisplayのTransformationを更新（XY位置と回転）
     private void updateTransformation() {
         Transformation transformation = display.getTransformation();
         
-        // Interpolation設定（移動と回転を同時にスムーズに）
+        // アニメーション設定
         display.setInterpolationDuration(5); // 5tick = 0.25秒
         display.setInterpolationDelay(0);
         
         // BlockDisplayの中心オフセット（-0.5, -0.5, -0.5）に回転を適用
-        Vector3f centerOffset = new Vector3f(-0.5f, -0.5f, -0.5f);
-        centerOffset.rotate(rotation);
+        Vector3f offset = new Vector3f(-0.5f, -0.5f, -0.5f);
+        offset.rotate(rotation);
         
-        // グリッド位置による移動オフセット
-        Vector3f translation = new Vector3f(gridPosition.x, gridPosition.y, gridPosition.z);
-        translation.add(centerOffset);
+        // XY方向の相対位置（Z=0、Zはテレポートで管理）
+        Vector3f translation = new Vector3f(gridPosition.x, gridPosition.y, 0);
+        translation.add(offset);
         
         // Transformationに設定
         transformation.getLeftRotation().set(rotation);
