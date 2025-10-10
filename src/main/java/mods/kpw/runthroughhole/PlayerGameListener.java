@@ -5,7 +5,9 @@ import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -17,7 +19,6 @@ import java.util.UUID;
 public class PlayerGameListener implements Listener {
 
     private final Main plugin;
-    private final float VIEW_THRESHOLD = 0.0f; // 視点ずれの許容範囲
     private final Map<UUID, Quaternionf> currentDisplayRotationMap = new HashMap<>();
     
     public PlayerGameListener(Main plugin) {
@@ -33,7 +34,12 @@ public class PlayerGameListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        // 右クリックのみ反応
+        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getHand() != EquipmentSlot.OFF_HAND) {
+            return;
+        }
+
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
 
@@ -56,36 +62,29 @@ public class PlayerGameListener implements Listener {
         float pitchDiff = normalizeAngle(currentPitch - targetPlayerPitch);
 
         boolean rotated = false;
-
         Quaternionf newRotation = new Quaternionf();
 
-        // YawとPitchのずれが両方とも1度以上の場合、より大きい方を優先
-        if (Math.abs(yawDiff) > VIEW_THRESHOLD || Math.abs(pitchDiff) > VIEW_THRESHOLD) {
-            Main.logger.info("視点ずれ検出: Yaw差=" + yawDiff + ", Pitch差=" + pitchDiff);
-            // Yawのずれが1度以上の場合
-            if (Math.abs(yawDiff) > Math.abs(pitchDiff)) {
-                // プレイヤーの視点移動の方向に応じて、BlockDisplayの目標回転角度を90度単位で計算
-                // 進行方向を基準としたY軸回転（ヨー）
-                if (yawDiff > 0) { // 右にずれた
-                    newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, -1, 0);
-                    player.sendMessage("右に回転");
-                } else { // 左にずれた
-                    newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, -1, 0);
-                    player.sendMessage("左に回転");
-                }
-            } else {
-                // Pitchのずれが1度以上の場合
-                if (Math.abs(pitchDiff) > VIEW_THRESHOLD) {
-                    // プレイヤーの視点移動の方向に応じて、BlockDisplayの目標回転角度を90度単位で計算
-                    // 進行方向を基準としたX軸回転（ピッチ）
-                    if (pitchDiff > 0) { // 上にずれた
-                        newRotation.rotateAxis((float) Math.toRadians(90.0f), 1, 0, 0);
-                        player.sendMessage("上に回転");
-                    } else { // 下にずれた
-                        newRotation.rotateAxis((float) Math.toRadians(-90.0f), 1, 0, 0);
-                        player.sendMessage("下に回転");
-                    }
-                }
+        // YawとPitchのずれを比較して、より大きい方を優先
+        Main.logger.info("視点検出: Yaw差=" + yawDiff + ", Pitch差=" + pitchDiff);
+        
+        if (Math.abs(yawDiff) > Math.abs(pitchDiff)) {
+            // Yawのずれが大きい → Yaw軸で回転
+            if (yawDiff > 0) { // 右にずれた
+                newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, -1, 0);
+                player.sendMessage("右に回転（Yaw軸）");
+            } else { // 左にずれた
+                newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, -1, 0);
+                player.sendMessage("左に回転（Yaw軸）");
+            }
+            rotated = true;
+        } else {
+            // Pitchのずれが大きい → Pitch軸で回転
+            if (pitchDiff > 0) { // 上にずれた
+                newRotation.rotateAxis((float) Math.toRadians(90.0f), 1, 0, 0);
+                player.sendMessage("上に回転（Pitch軸）");
+            } else { // 下にずれた
+                newRotation.rotateAxis((float) Math.toRadians(-90.0f), 1, 0, 0);
+                player.sendMessage("下に回転（Pitch軸）");
             }
             rotated = true;
         }
@@ -113,16 +112,12 @@ public class PlayerGameListener implements Listener {
             transformation.getTranslation().set(offset);
 
             display.setTransformation(transformation);
-            
-            // プレイヤーの視点を元のX+方向に戻す
-            Location newLoc = currentLocation.clone();
-            newLoc.setYaw(targetPlayerYaw);
-            newLoc.setPitch(targetPlayerPitch);
-            player.teleport(newLoc);
         }
 
         // BlockDisplayの位置をプレイヤーの頭上に同期
-        display.teleport(player.getLocation().add(0, 2, 0));
+        currentLocation.setYaw(targetPlayerYaw);
+        currentLocation.setPitch(targetPlayerPitch);
+        display.teleport(currentLocation.add(0, 2, 0));
     }
 
     private float normalizeAngle(float angle) {
