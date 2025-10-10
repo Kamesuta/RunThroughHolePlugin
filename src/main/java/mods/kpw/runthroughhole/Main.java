@@ -7,14 +7,18 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 public class Main extends JavaPlugin {
 
     private final Map<UUID, BlockDisplay> playerDisplays = new HashMap<>();
 
+    public static Logger logger;
+
     @Override
     public void onEnable() {
-        getLogger().info("RunThroughHoleプラグインが有効になりました。");
+        logger = getLogger();
+        logger.info("RunThroughHoleプラグインが有効になりました。");
 
         // コマンドの登録
         getCommand("rth").setExecutor(new RthCommand(this));
@@ -59,7 +63,7 @@ public class Main extends JavaPlugin {
 
         // BlockDisplayをスポーン
         BlockDisplay display = player.getWorld().spawn(player.getLocation().add(0, 2, 0), BlockDisplay.class);
-        display.setBlock(org.bukkit.Material.STONE.createBlockData());
+        display.setBlock(org.bukkit.Material.FLETCHING_TABLE.createBlockData());
         playerDisplays.put(player.getUniqueId(), display);
 
         player.sendMessage("ゲームを開始しました！");
