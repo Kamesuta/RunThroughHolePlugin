@@ -61,6 +61,9 @@ public class Main extends JavaPlugin {
         loc.setPitch(0f);
         player.teleport(loc);
 
+        // ホットバーのスロットを5番目（インデックス4）に設定
+        player.getInventory().setHeldItemSlot(4);
+
         // BlockDisplayをスポーン
         BlockDisplay display = player.getWorld().spawn(player.getLocation().add(0, 2, 0), BlockDisplay.class);
         display.setBlock(org.bukkit.Material.FLETCHING_TABLE.createBlockData());

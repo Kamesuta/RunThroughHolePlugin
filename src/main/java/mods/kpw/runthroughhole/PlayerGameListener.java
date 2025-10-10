@@ -7,6 +7,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
@@ -118,6 +119,62 @@ public class PlayerGameListener implements Listener {
         currentLocation.setYaw(targetPlayerYaw);
         currentLocation.setPitch(targetPlayerPitch);
         display.teleport(currentLocation.add(0, 2, 0));
+    }
+
+    @EventHandler
+    public void onPlayerItemHeld(PlayerItemHeldEvent event) {
+        Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
+
+        if (!plugin.getPlayerDisplays().containsKey(playerId)) {
+            return; // ゲーム中でないプレイヤーは無視
+        }
+
+        int newSlot = event.getNewSlot();
+        
+        BlockDisplay display = plugin.getPlayerDisplays().get(playerId);
+        Quaternionf newRotation = new Quaternionf();
+        boolean rotated = false;
+
+        // 1～4番（インデックス0～3）→ 左Roll回転
+        // 6～9番（インデックス5～8）→ 右Roll回転
+        if (newSlot >= 0 && newSlot <= 3) { // 1～4番
+            newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, 0, 1);
+            player.sendMessage("左にRoll回転");
+            rotated = true;
+        } else if (newSlot >= 5 && newSlot <= 8) { // 6～9番
+            newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 0, 1);
+            player.sendMessage("右にRoll回転");
+            rotated = true;
+        }
+
+        if (rotated) {
+            // 現在のBlockDisplayの回転に新しい回転を適用
+            Quaternionf rotation = new Quaternionf()
+                .mul(newRotation)
+                .mul(getOrInitRotation(playerId));
+            currentDisplayRotationMap.put(playerId, rotation);
+
+            // BlockDisplayのTransformationを更新して回転を同期
+            Transformation transformation = display.getTransformation();
+
+            // アニメーション設定
+            display.setInterpolationDuration(5); // 5ティックでアニメーション
+            display.setInterpolationDelay(0); // 遅延なし
+            
+            // BlockDisplayの中心オフセット
+            Vector3f offset = new Vector3f(-0.5f, -0.5f, -0.5f);
+            offset.rotate(rotation); // 回転を考慮してオフセットを回転
+            
+            // Transformationに設定
+            transformation.getLeftRotation().set(rotation);
+            transformation.getTranslation().set(offset);
+
+            display.setTransformation(transformation);
+
+            // スロットを5番目（インデックス4）に戻す
+            player.getInventory().setHeldItemSlot(4);
+        }
     }
 
     private float normalizeAngle(float angle) {
