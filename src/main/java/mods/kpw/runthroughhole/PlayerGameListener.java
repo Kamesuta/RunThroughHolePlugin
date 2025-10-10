@@ -7,6 +7,8 @@ import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
@@ -23,8 +25,8 @@ public class PlayerGameListener implements Listener {
     private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
 
     // ジェスチャー認識用
-    private final float GESTURE_THRESHOLD = 15.0f; // ジェスチャー開始・中央判定の閾値（度）
-    private final long COOLDOWN_MS = 500; // クールダウン時間（ミリ秒）
+    private final float GESTURE_THRESHOLD = 5.0f; // ジェスチャー開始・中央判定の閾値（度）
+    private final long COOLDOWN_MS = 200; // クールダウン時間（ミリ秒）
 
     // 目標視点 (Z+方向: Yaw 0, Pitch 0)
     private static final float TARGET_YAW = 0.0f;
@@ -67,6 +69,44 @@ public class PlayerGameListener implements Listener {
         
         // クールダウンタイムスタンプを更新
         data.lastCommandTime = System.currentTimeMillis();
+    }
+
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
+        BlockDisplay display = plugin.getPlayerDisplays().get(playerId);
+        if (display == null)
+            return; // ゲーム中でないプレイヤーは無視
+
+        PlayerData data = getOrInitPlayerData(playerId);
+
+        // クールダウンチェック
+        long currentTime = System.currentTimeMillis();
+        boolean isInCooldown = (currentTime - data.lastCommandTime) < COOLDOWN_MS;
+        if (isInCooldown)
+            return; // クールダウン中は無視
+
+        Action action = event.getAction();
+        Quaternionf newRotation = new Quaternionf();
+        boolean shouldRotate = false;
+
+        // 左クリック：反時計回りRoll回転
+        if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
+            newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, 0, 1);
+            player.sendMessage("反時計回りにRoll回転");
+            shouldRotate = true;
+        }
+        // 右クリック：時計回りRoll回転
+        else if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+            newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 0, 1);
+            player.sendMessage("時計回りにRoll回転");
+            shouldRotate = true;
+        }
+
+        if (shouldRotate) {
+            applyRotation(playerId, display, newRotation);
+        }
     }
 
     @EventHandler
