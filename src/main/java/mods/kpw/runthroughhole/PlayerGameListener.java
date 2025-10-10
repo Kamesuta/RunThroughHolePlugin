@@ -34,6 +34,32 @@ public class PlayerGameListener implements Listener {
         });
     }
 
+    // 回転を適用してBlockDisplayを更新する共通メソッド
+    private void applyRotation(UUID playerId, BlockDisplay display, Quaternionf newRotation) {
+        // 現在のBlockDisplayの回転に新しい回転を適用
+        Quaternionf rotation = new Quaternionf()
+            .mul(newRotation)
+            .mul(getOrInitRotation(playerId));
+        currentDisplayRotationMap.put(playerId, rotation);
+
+        // BlockDisplayのTransformationを更新して回転を同期
+        Transformation transformation = display.getTransformation();
+
+        // アニメーション設定
+        display.setInterpolationDuration(5); // 5ティックでアニメーション
+        display.setInterpolationDelay(0); // 遅延なし
+        
+        // BlockDisplayの中心オフセット
+        Vector3f offset = new Vector3f(-0.5f, -0.5f, -0.5f);
+        offset.rotate(rotation); // 回転を考慮してオフセットを回転
+        
+        // Transformationに設定
+        transformation.getLeftRotation().set(rotation);
+        transformation.getTranslation().set(offset);
+
+        display.setTransformation(transformation);
+    }
+
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         // 右クリックのみ反応
@@ -43,12 +69,8 @@ public class PlayerGameListener implements Listener {
 
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
-
-        if (!plugin.getPlayerDisplays().containsKey(playerId)) {
-            return; // ゲーム中でないプレイヤーは無視
-        }
-
         BlockDisplay display = plugin.getPlayerDisplays().get(playerId);
+        if (display == null) return; // ゲーム中でないプレイヤーは無視
 
         Location currentLocation = player.getLocation();
         float currentYaw = currentLocation.getYaw();
@@ -91,28 +113,7 @@ public class PlayerGameListener implements Listener {
         }
 
         if (rotated) {
-            // 現在のBlockDisplayの回転に新しい回転を適用
-            Quaternionf rotation = new Quaternionf()
-                .mul(newRotation)
-                .mul(getOrInitRotation(playerId));
-            currentDisplayRotationMap.put(playerId, rotation);
-
-            // BlockDisplayのTransformationを更新して回転を同期
-            Transformation transformation = display.getTransformation();
-
-            // アニメーション設定
-            display.setInterpolationDuration(5); // 5ティックでアニメーション
-            display.setInterpolationDelay(0); // 遅延なし
-            
-            // BlockDisplayの中心オフセット
-            Vector3f offset = new Vector3f(-0.5f, -0.5f, -0.5f);
-            offset.rotate(rotation); // 回転を考慮してオフセットを回転
-            
-            // Transformationに設定
-            transformation.getLeftRotation().set(rotation);
-            transformation.getTranslation().set(offset);
-
-            display.setTransformation(transformation);
+            applyRotation(playerId, display, newRotation);
         }
 
         // BlockDisplayの位置をプレイヤーの頭上に同期
@@ -125,17 +126,14 @@ public class PlayerGameListener implements Listener {
     public void onPlayerItemHeld(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
-
-        if (!plugin.getPlayerDisplays().containsKey(playerId)) {
-            return; // ゲーム中でないプレイヤーは無視
-        }
-
-        int newSlot = event.getNewSlot();
-        
         BlockDisplay display = plugin.getPlayerDisplays().get(playerId);
+        if (display == null) return; // ゲーム中でないプレイヤーは無視
+
         Quaternionf newRotation = new Quaternionf();
         boolean rotated = false;
 
+        int newSlot = event.getNewSlot();
+        
         // 1～4番（インデックス0～3）→ 左Roll回転
         // 6～9番（インデックス5～8）→ 右Roll回転
         if (newSlot >= 0 && newSlot <= 3) { // 1～4番
@@ -149,29 +147,7 @@ public class PlayerGameListener implements Listener {
         }
 
         if (rotated) {
-            // 現在のBlockDisplayの回転に新しい回転を適用
-            Quaternionf rotation = new Quaternionf()
-                .mul(newRotation)
-                .mul(getOrInitRotation(playerId));
-            currentDisplayRotationMap.put(playerId, rotation);
-
-            // BlockDisplayのTransformationを更新して回転を同期
-            Transformation transformation = display.getTransformation();
-
-            // アニメーション設定
-            display.setInterpolationDuration(5); // 5ティックでアニメーション
-            display.setInterpolationDelay(0); // 遅延なし
-            
-            // BlockDisplayの中心オフセット
-            Vector3f offset = new Vector3f(-0.5f, -0.5f, -0.5f);
-            offset.rotate(rotation); // 回転を考慮してオフセットを回転
-            
-            // Transformationに設定
-            transformation.getLeftRotation().set(rotation);
-            transformation.getTranslation().set(offset);
-
-            display.setTransformation(transformation);
-
+            applyRotation(playerId, display, newRotation);
             // スロットを5番目（インデックス4）に戻す
             player.getInventory().setHeldItemSlot(4);
         }
