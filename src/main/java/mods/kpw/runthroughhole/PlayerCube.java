@@ -34,7 +34,7 @@ public class PlayerCube {
     // グリッド位置を移動
     public void move(Vector3f delta) {
         this.gridPosition.add(delta);
-        updateDisplayPosition();
+        updateTransformation();
     }
     
     // 回転を適用
@@ -45,39 +45,28 @@ public class PlayerCube {
                 .mul(this.rotation);
         this.rotation = rotation;
         
-        updateDisplayTransformation();
+        updateTransformation();
     }
     
-    // BlockDisplayの位置を更新
-    private void updateDisplayPosition() {
-        double worldX = baseLocation.getX() + gridPosition.x;
-        double worldY = baseLocation.getY() + 2.0 + gridPosition.y; // 基準位置の上2ブロック + グリッド位置
-        double worldZ = baseLocation.getZ() + gridPosition.z;
-        
-        // Interpolationを設定（スムーズな移動）
-        display.setInterpolationDuration(10); // 10tick = 0.5秒
-        display.setInterpolationDelay(0);
-        
-        // BlockDisplayを移動
-        Location newLocation = new Location(baseLocation.getWorld(), worldX, worldY, worldZ, 0, 0);
-        display.teleport(newLocation);
-    }
-    
-    // BlockDisplayのTransformationを更新（回転のみ）
-    private void updateDisplayTransformation() {
+    // BlockDisplayのTransformationを更新（位置と回転）
+    private void updateTransformation() {
         Transformation transformation = display.getTransformation();
         
-        // アニメーション設定
-        display.setInterpolationDuration(5); // 5ティックでアニメーション
-        display.setInterpolationDelay(0); // 遅延なし
+        // Interpolation設定（移動と回転を同時にスムーズに）
+        display.setInterpolationDuration(5); // 5tick = 0.25秒
+        display.setInterpolationDelay(0);
         
-        // BlockDisplayの中心オフセット
-        Vector3f offset = new Vector3f(-0.5f, -0.5f, -0.5f);
-        offset.rotate(rotation); // 回転を考慮してオフセットを回転
+        // BlockDisplayの中心オフセット（-0.5, -0.5, -0.5）に回転を適用
+        Vector3f centerOffset = new Vector3f(-0.5f, -0.5f, -0.5f);
+        centerOffset.rotate(rotation);
+        
+        // グリッド位置による移動オフセット
+        Vector3f translation = new Vector3f(gridPosition.x, gridPosition.y, gridPosition.z);
+        translation.add(centerOffset);
         
         // Transformationに設定
         transformation.getLeftRotation().set(rotation);
-        transformation.getTranslation().set(offset);
+        transformation.getTranslation().set(translation);
         
         display.setTransformation(transformation);
     }
