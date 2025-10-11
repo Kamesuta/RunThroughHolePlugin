@@ -13,17 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PlayerCube {
-    // BlockDisplayとオフセットをまとめて管理する内部クラス
-    private static class CubeBlock {
-        BlockDisplay display;
-        Vector3f offset; // ローカル座標での相対位置
-        
-        CubeBlock(BlockDisplay display, Vector3f offset) {
-            this.display = display;
-            this.offset = offset;
-        }
-    }
-    
     // 複数のブロックを管理
     private List<CubeBlock> blocks;
     
@@ -187,6 +176,38 @@ public class PlayerCube {
             }
         }
         return false; // 衝突なし
+    }
+    
+    // 衝突したブロックのリストを取得
+    public List<CubeBlock> getCollidedBlocks() {
+        List<CubeBlock> collidedBlocks = new ArrayList<>();
+        for (CubeBlock block : blocks) {
+            // ブロックのワールド座標を計算
+            Location blockWorldLoc = getBlockWorldLocation(block);
+            
+            // その座標のブロックをチェック
+            Block blockAt = world.getBlockAt(blockWorldLoc);
+            Material material = blockAt.getType();
+            if (material != Material.AIR && material != Material.CAVE_AIR && material != Material.VOID_AIR && material != Material.GLASS) {
+                collidedBlocks.add(block);
+            }
+        }
+        return collidedBlocks;
+    }
+    
+    // 特定のブロックの色を変更
+    public void changeBlockColor(CubeBlock block, Material material) {
+        if (block != null && block.display != null) {
+            block.display.setBlock(material.createBlockData());
+        }
+    }
+    
+    // 特定のブロックの位置を取得（演出用）
+    public Location getBlockDisplayLocation(CubeBlock block) {
+        if (block != null && block.display != null) {
+            return block.display.getLocation();
+        }
+        return null;
     }
     
     // 各ブロックのワールド座標を計算

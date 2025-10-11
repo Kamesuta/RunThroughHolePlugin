@@ -1,6 +1,9 @@
 package mods.kpw.runthroughhole;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.Bat;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -9,6 +12,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.joml.Vector3f;
+
+import java.util.List;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -54,7 +59,9 @@ public class Main extends JavaPlugin {
                         // プレイヤーを取得
                         Player player = getPlayerFromData(data);
                         if (player != null) {
-                            gameOver(player, "ブロックに衝突しました！");
+                            // 衝突したブロックを取得
+                            List<CubeBlock> collidedBlocks = data.cube.getCollidedBlocks();
+                            gameOver(player, "ブロックに衝突しました！", collidedBlocks);
                         }
                         continue;
                     }
@@ -109,8 +116,8 @@ public class Main extends JavaPlugin {
         return null;
     }
     
-    // ゲームオーバー処理
-    public void gameOver(Player player, String reason) {
+    // ゲームオーバー処理（衝突ブロックあり）
+    public void gameOver(Player player, String reason, List<CubeBlock> collidedBlocks) {
         UUID playerId = player.getUniqueId();
         PlayerData data = playerDataMap.get(playerId);
         
@@ -122,6 +129,29 @@ public class Main extends JavaPlugin {
         // ゲームオーバーフラグを立てて重複呼び出しを防ぐ
         data.isGameOver = true;
         getLogger().info(player.getName() + "のゲームオーバー処理を開始");
+        
+        // 衝突したブロックに演出を適用
+        if (collidedBlocks != null && !collidedBlocks.isEmpty() && data.cube != null) {
+            for (CubeBlock block : collidedBlocks) {
+                // ブロックを赤いガラスに変更
+                data.cube.changeBlockColor(block, Material.RED_STAINED_GLASS);
+                
+                // ブロックの位置を取得
+                Location blockLoc = data.cube.getBlockDisplayLocation(block);
+                if (blockLoc != null) {
+                    // パーティクルエフェクト（炎とダメージ）
+                    player.getWorld().spawnParticle(Particle.FLAME, blockLoc, 20, 0.3, 0.3, 0.3, 0.05);
+                    player.getWorld().spawnParticle(Particle.LAVA, blockLoc, 10, 0.2, 0.2, 0.2, 0);
+                    player.getWorld().spawnParticle(Particle.SMOKE, blockLoc, 15, 0.3, 0.3, 0.3, 0.05);
+                    
+                    // 爆発エフェクト（破壊力なし）
+                    player.getWorld().createExplosion(blockLoc, 0.0f, false, false);
+                    
+                    // 爆発音
+                    player.getWorld().playSound(blockLoc, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.0f);
+                }
+            }
+        }
         
         // タイトルに「GAME OVER」を表示
         Title title = Title.title(
@@ -138,6 +168,11 @@ public class Main extends JavaPlugin {
         getServer().getScheduler().runTaskLater(this, () -> {
             stopGame(player);
         }, 60L); // 3秒後（60tick）
+    }
+    
+    // ゲームオーバー処理（衝突ブロックなし - 互換性のため）
+    public void gameOver(Player player, String reason) {
+        gameOver(player, reason, null);
     }
     
     // カメラ位置を更新（キューブから10マス後ろ）
