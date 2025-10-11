@@ -35,9 +35,9 @@ public class Main extends JavaPlugin {
         logger.info("RunThroughHoleプラグインが有効になりました。");
 
         // コマンドの登録
-        RthCommand rthCommand = new RthCommand(this);
-        getCommand("rth").setExecutor(rthCommand);
-        getCommand("rth").setTabCompleter(rthCommand);
+        RunHoleCommand rthCommand = new RunHoleCommand(this);
+        getCommand("runhole").setExecutor(rthCommand);
+        getCommand("runhole").setTabCompleter(rthCommand);
 
         // イベントリスナーの登録
         gameListener = new PlayerGameListener(this);

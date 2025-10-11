@@ -1,10 +1,17 @@
-# IMPORTANT: You must change this name to your own plugin name!
 name: RunThroughHole
 version: 1.0
-main: mods.kpw.runthroughhole.Main # This will be replaced by a random package name
+main: mods.kpw.runthroughhole.Main
 api-version: '1.21'
 depend: [ProtocolLib]
 commands:
-  rth:
-    description: Starts or stops the RunThroughHole game.
-    usage: /rth <start|stop>
+  runhole:
+    description: 穴抜けゲームを開始または停止します。
+    usage: /runhole <start|stop> [プレイヤー名|@セレクタ]
+    permission: runhole.use
+permissions:
+  runhole.use:
+    description: 自分自身のゲームを開始・停止する権限
+    default: true
+  runhole.admin:
+    description: 他のプレイヤーのゲームを開始・停止する権限
+    default: op
