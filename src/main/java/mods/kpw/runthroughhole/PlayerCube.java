@@ -3,6 +3,7 @@ package mods.kpw.runthroughhole;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
@@ -80,8 +81,8 @@ public class PlayerCube {
                         // 相対オフセット（中心を(1,1,1)として、-1～1の範囲）
                         Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
                         
-                        // BlockDisplayをスポーン（基準位置の上2ブロック）
-                        Location spawnLoc = baseLocation.clone().add(0, 2, 0);
+                        // BlockDisplayをスポーン（基準位置の上1.5ブロック）
+                        Location spawnLoc = baseLocation.clone().add(0, 1.5, 0);
                         BlockDisplay display = world.spawn(spawnLoc, BlockDisplay.class);
                         display.setBlock(Material.FLETCHING_TABLE.createBlockData());
                         
@@ -178,8 +179,10 @@ public class PlayerCube {
             Location blockWorldLoc = getBlockWorldLocation(block);
             
             // その座標のブロックをチェック
-            Material material = world.getBlockAt(blockWorldLoc).getType();
-            if (material != Material.AIR && material != Material.CAVE_AIR && material != Material.VOID_AIR) {
+            Block blockAt = world.getBlockAt(blockWorldLoc);
+            Material material = blockAt.getType();
+            if (material != Material.AIR && material != Material.CAVE_AIR && material != Material.VOID_AIR && material != Material.GLASS) {
+                // blockAt.setType(Material.GLASS); // デバッグ用可視化
                 return true; // 衝突あり
             }
         }
@@ -188,14 +191,19 @@ public class PlayerCube {
     
     // 各ブロックのワールド座標を計算
     private Location getBlockWorldLocation(CubeBlock block) {
+        return getBlockWorldLocation(block, 0.0);
+    }
+    
+    // 各ブロックのワールド座標を計算（Zオフセット指定可能）
+    private Location getBlockWorldLocation(CubeBlock block, double zOffset) {
         // ブロックのローカルオフセットに回転を適用
         Vector3f rotatedOffset = new Vector3f(block.offset);
         rotatedOffset.rotate(rotation);
         
-        // ワールド座標を計算
-        double worldX = baseLocation.getX() + gridPosition.x + rotatedOffset.x;
-        double worldY = baseLocation.getY() + 2 + gridPosition.y + rotatedOffset.y;
-        double worldZ = baseLocation.getZ() + gridPosition.z + forwardProgress + rotatedOffset.z;
+        // ワールド座標を計算（ブロックの中心座標に合わせるため0.5を加える）
+        double worldX = baseLocation.getX() - 0.5 + gridPosition.x + rotatedOffset.x;
+        double worldY = baseLocation.getY() + 1.0 + gridPosition.y + rotatedOffset.y; // 1マス下げる
+        double worldZ = baseLocation.getZ() + 0.5 + gridPosition.z + forwardProgress + rotatedOffset.z + zOffset;
         
         return new Location(world, 
             Math.floor(worldX), 
