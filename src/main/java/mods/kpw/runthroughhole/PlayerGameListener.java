@@ -52,7 +52,7 @@ public class PlayerGameListener implements Listener {
                 if (player == null) return;
                 
                 PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
-                if (data == null || data.entity == null || data.isGameOver) return;
+                if (data == null || data.camera == null || data.isGameOver) return;
                 
                 boolean forward, backward, left, right, jump;
                 
@@ -98,7 +98,7 @@ public class PlayerGameListener implements Listener {
                 if (player == null) return;
                 
                 PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
-                if (data == null || data.entity == null || data.isGameOver) return;
+                if (data == null || data.camera == null || data.isGameOver) return;
                 
                 float yaw, pitch;
                 
@@ -153,7 +153,7 @@ public class PlayerGameListener implements Listener {
             PlayerData data = plugin.getPlayerData(player.getUniqueId());
             
             // ゲーム中のプレイヤーが椅子から降りようとした場合
-            if (data != null && data.entity != null && event.getVehicle().equals(data.entity)) {
+            if (data != null && data.camera != null && data.camera.isEntity(event.getVehicle())) {
                 // イベントをキャンセルして降りれないようにする
                 event.setCancelled(true);
                 

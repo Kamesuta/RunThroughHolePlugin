@@ -5,14 +5,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.entity.Bat;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
-import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,8 +14,6 @@ import java.util.stream.Collectors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.Title;
-
-import io.papermc.paper.entity.TeleportFlag;
 
 import java.time.Duration;
 
@@ -62,16 +54,16 @@ public class Main extends JavaPlugin {
                     
                     if (!collidedBlocks.isEmpty()) {
                         // プレイヤーを取得
-                        Player player = getPlayerFromData(data);
+                        Player player = data.camera != null ? data.camera.getPlayer() : null;
                         if (player != null) {
                             gameOver(player, "ブロックに衝突しました！", collidedBlocks);
                         }
                         continue;
                     }
                     
-                    // カメラ（椅子）をキューブから10マス後ろに追従
-                    if (data.entity != null && data.initialLocation != null) {
-                        updateCameraPosition(data);
+                    // カメラを更新
+                    if (data.camera != null) {
+                        data.camera.update();
                     }
                 }
             }
@@ -108,16 +100,6 @@ public class Main extends JavaPlugin {
         return gameListener;
     }
     
-    // PlayerDataからPlayerを取得するヘルパーメソッド
-    private Player getPlayerFromData(PlayerData data) {
-        if (data.entity != null && !data.entity.getPassengers().isEmpty()) {
-            var passenger = data.entity.getPassengers().get(0);
-            if (passenger instanceof Player) {
-                return (Player) passenger;
-            }
-        }
-        return null;
-    }
     
     // ゲームオーバー処理（衝突ブロックあり）
     public void gameOver(Player player, String reason, List<CubeBlock> collidedBlocks) {
@@ -168,12 +150,12 @@ public class Main extends JavaPlugin {
         player.sendMessage(Component.text("ゲームオーバー: " + reason, NamedTextColor.RED));
         
         // すぐにプレイヤーを降車させて、衝突原因を振り返れるようにする
-        if (data.entity != null) {
+        if (data.camera != null) {
             // 椅子の現在位置を取得
-            Location dismountLoc = data.entity.getLocation();
+            Location dismountLoc = data.camera.getEntity().getLocation();
             
             // プレイヤーを降車
-            data.entity.eject();
+            data.camera.eject();
             
             // プレイヤーを椅子の位置にテレポート（地面に落ちないように）
             player.teleport(dismountLoc);
@@ -193,78 +175,6 @@ public class Main extends JavaPlugin {
     // ゲームオーバー処理（衝突ブロックなし - 互換性のため）
     public void gameOver(Player player, String reason) {
         gameOver(player, reason, null);
-    }
-    
-    // カメラ位置を更新（キューブから10マス後ろ、通常時は2マス上、XY平面はスムーズに移動）
-    private void updateCameraPosition(PlayerData data) {
-        Vector3f cubeGridPos = data.cube.gridPosition;
-        float cubeForwardProgress = data.cube.getForwardProgress();
-        
-        // キューブのZ位置から10マス後ろ（固定）
-        double cameraZ = cubeGridPos.z + cubeForwardProgress - 10.0;
-        
-        // カメラの絶対Z座標を計算
-        double cameraAbsoluteZ = data.initialLocation.getZ() + cameraZ;
-        
-        // 穴を検出
-        Location holeLocation = data.cube.detectHole();
-        
-        if (holeLocation != null) {
-            // 穴が見つかった場合
-            if (!data.isInHole) {
-                // 初めて穴を検出した→目標位置をキューブの中心位置に設定
-                data.isInHole = true;
-                data.lastHoleLocation = holeLocation.clone();
-                data.cameraTargetX = holeLocation.getX() - data.initialLocation.getX();
-                data.cameraTargetY = holeLocation.getY() - data.initialLocation.getY();
-            }
-            // 穴にフォーカス中は目標位置を更新しない（カメラ固定）
-        } else {
-            // 穴が見つからない場合
-            if (data.isInHole) {
-                // カメラが穴のZ座標を超えたかチェック
-                if (data.lastHoleLocation != null && cameraAbsoluteZ > data.lastHoleLocation.getZ()) {
-                    // カメラが穴を通過した→穴モードを解除
-                    data.isInHole = false;
-                    data.lastHoleLocation = null;
-                }
-                // まだカメラが穴を通過していない場合は、目標位置を変更しない（カメラ固定継続）
-            }
-            
-            if (!data.isInHole) {
-                // 通常時：キューブの位置+2マス上を目標にする
-                data.cameraTargetX = cubeGridPos.x;
-                data.cameraTargetY = cubeGridPos.y + 2.0;
-            }
-        }
-        
-        // 現在位置を目標位置に向けてスムーズに補間
-        double lerpFactor = 0.1; // ゆっくり移動
-        data.cameraCurrentX += (data.cameraTargetX - data.cameraCurrentX) * lerpFactor;
-        data.cameraCurrentY += (data.cameraTargetY - data.cameraCurrentY) * lerpFactor;
-        
-        // 初期位置を基準に新しい位置を計算
-        Location newCameraLoc = data.initialLocation.clone();
-        newCameraLoc.add(data.cameraCurrentX, data.cameraCurrentY, cameraZ);
-        newCameraLoc.setYaw(0f);
-        newCameraLoc.setPitch(0f);
-        
-        // プレイヤーを取得
-        Player player = null;
-        if (!data.entity.getPassengers().isEmpty()) {
-            var passenger = data.entity.getPassengers().get(0);
-            if (passenger instanceof Player) {
-                player = (Player) passenger;
-            }
-        }
-        
-        // 椅子をテレポート
-        if (player != null) {
-            data.entity.teleport(newCameraLoc, TeleportFlag.EntityState.RETAIN_PASSENGERS);
-        } else {
-            // プレイヤーがいない場合は普通にテレポート
-            data.entity.teleport(newCameraLoc);
-        }
     }
 
     // ゲーム開始処理
@@ -295,23 +205,15 @@ public class Main extends JavaPlugin {
         // 現在のゲームモードを保存
         data.originalGameMode = player.getGameMode();
 
-        // 透明でNoAIな椅子をスポーン
-        Bat entity = (Bat) player.getWorld().spawnEntity(loc, EntityType.BAT);
-        entity.setInvulnerable(true);
-        entity.setGravity(false);
-        entity.setSilent(true);
-        entity.setAI(false); // AIを無効化して完全に動かなくする
-        entity.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
+        // キャラのキューブを作成
+        data.cube = new PlayerCube(player.getWorld(), loc.clone());
         
-        // プレイヤーを椅子に乗せる
-        entity.addPassenger(player);
-        data.entity = entity;
+        // カメラを作成してセットアップ
+        data.camera = new CubeCamera(player.getWorld(), loc.clone(), data.cube);
+        data.camera.setup(player);
 
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);
-
-        // キャラのキューブを作成
-        data.cube = new PlayerCube(player.getWorld(), loc.clone());
 
         player.sendMessage("ゲームを開始しました！WASDで上下左右に移動できます。");
         getLogger().info(player.getName() + "がゲームを開始しました。");
@@ -327,11 +229,9 @@ public class Main extends JavaPlugin {
             return;
         }
 
-        // 椅子から降りる
-        Entity entity = data.entity;
-        if (entity != null) {
-            entity.eject();
-            entity.remove();
+        // カメラをクリーンアップ
+        if (data.camera != null) {
+            data.camera.cleanup();
         }
 
         // キューブを削除
