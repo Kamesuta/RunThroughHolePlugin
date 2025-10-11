@@ -143,6 +143,11 @@ public class PlayerGameListener implements Listener {
         
         // クールダウンタイムスタンプを更新
         data.lastCommandTime = System.currentTimeMillis();
+        
+        // プレビューを更新（回転により通過可能な穴が変わる可能性があるため）
+        if (data.preview != null && data.initialLocation != null) {
+            data.preview.update(data.cube, data.initialLocation);
+        }
     }
 
     @EventHandler
@@ -234,6 +239,11 @@ public class PlayerGameListener implements Listener {
                 // 衝突しない場合のみ移動
                 data.cube.move(gridMove);
                 data.lastMoveTime = currentTime;
+                
+                // プレビューを更新（移動により壁との位置関係が変わる可能性があるため）
+                if (data.preview != null && data.initialLocation != null) {
+                    data.preview.update(data.cube, data.initialLocation);
+                }
             }
             // 衝突する場合は移動をキャンセル（何もしない）
         }

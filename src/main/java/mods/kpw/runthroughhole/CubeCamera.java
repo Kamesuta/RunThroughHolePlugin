@@ -18,7 +18,7 @@ import io.papermc.paper.entity.TeleportFlag;
 public class CubeCamera {
     
     private static final double CAMERA_DISTANCE_BEHIND = 10.0; // キューブから後ろに離れる距離
-    private static final double CAMERA_HEIGHT_OFFSET = 3.0; // 通常時のカメラの高さオフセット
+    private static final double CAMERA_HEIGHT_OFFSET = 5.0; // 通常時のカメラの高さオフセット
     private static final double LERP_FACTOR = 0.1; // カメラのスムーズ移動速度
     private static final double CAMERA_RETURN_MARGIN = 1.0; // カメラを戻すまでの余裕距離（ブロック単位）
     

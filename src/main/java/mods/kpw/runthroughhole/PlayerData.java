@@ -6,6 +6,7 @@ import org.bukkit.Location;
 public class PlayerData {
     public PlayerCube cube; // キャラのキューブ
     public CubeCamera camera; // カメラ
+    public HolePreview preview; // 穴のプレビュー表示
     public String currentGuide; // 現在表示中のガイド（null = 非表示）
     public boolean isYawOutside; // Yaw方向でGESTURE_THRESHOLD外にいるかどうか
     public boolean isPitchOutside; // Pitch方向でGESTURE_THRESHOLD外にいるかどうか

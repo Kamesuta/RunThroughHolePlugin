@@ -68,6 +68,11 @@ public class Main extends JavaPlugin {
                     if (data.camera != null) {
                         data.camera.update();
                     }
+                    
+                    // プレビューを更新
+                    if (data.preview != null && data.initialLocation != null) {
+                        data.preview.update(data.cube, data.initialLocation);
+                    }
                 }
             }
         }, 1L, 1L); // 1tick遅延、1tickごとに実行
@@ -229,6 +234,9 @@ public class Main extends JavaPlugin {
         // カメラを作成してセットアップ
         data.camera = new CubeCamera(player.getWorld(), loc.clone(), data.cube);
         data.camera.setup(player);
+        
+        // プレビュー表示を作成
+        data.preview = new HolePreview(player.getWorld());
 
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);
@@ -275,6 +283,11 @@ public class Main extends JavaPlugin {
         // キューブを削除
         if (data.cube != null) {
             data.cube.remove();
+        }
+        
+        // プレビューをクリーンアップ
+        if (data.preview != null) {
+            data.preview.cleanup();
         }
         
         // 左手（オフハンド）の石のボタンを削除
