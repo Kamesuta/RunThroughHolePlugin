@@ -236,6 +236,15 @@ public class Main extends JavaPlugin {
         }
 
         Location loc = player.getLocation();
+        
+        // プレイヤーの位置をブロックグリッドにスナップ
+        double snappedX = Math.floor(loc.getX()) + 0.5; // ブロックの中心
+        double snappedY = Math.floor(loc.getY());       // ブロックの下面
+        double snappedZ = Math.floor(loc.getZ()) + 0.5; // ブロックの中心
+        
+        loc.setX(snappedX);
+        loc.setY(snappedY);
+        loc.setZ(snappedZ);
         loc.setYaw(0f);
         loc.setPitch(0f);
 
