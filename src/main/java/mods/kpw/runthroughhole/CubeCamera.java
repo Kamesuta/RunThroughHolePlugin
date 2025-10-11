@@ -2,31 +2,36 @@ package mods.kpw.runthroughhole;
 
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.entity.Bat;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-
 import io.papermc.paper.entity.TeleportFlag;
 
 /**
  * プレイヤーのカメラを管理するクラス
- * Entity（コウモリ）を使用してカメラ位置を制御し、
+ * Entityを使用してカメラ位置を制御し、
  * スムーズな移動と穴通過時の特殊な動作を実装
  */
 public class CubeCamera {
     
     private static final double CAMERA_DISTANCE_BEHIND = 10.0; // キューブから後ろに離れる距離
-    private static final double CAMERA_HEIGHT_OFFSET = 2.0; // 通常時のカメラの高さオフセット
+    private static final double CAMERA_HEIGHT_OFFSET = 3.0; // 通常時のカメラの高さオフセット
     private static final double LERP_FACTOR = 0.1; // カメラのスムーズ移動速度
+    
+    // カメラ位置の微調整用定数（正の値で上、負の値で下）
+    private static final double CAMERA_HEIGHT_ADJUSTMENT = -1.0; // カメラの高さ微調整（ブロック単位）
+    
+    // カメラエンティティの高さオフセット（プレイヤーが乗る位置を考慮）
+    private double entityHeightOffset = 0.0;
     
     private final World world;
     private final Location initialLocation; // ゲーム開始時の初期位置（不変）
     private final PlayerCube cube; // キューブへの参照
     
-    private Bat entity; // カメラ用のエンティティ（コウモリ）
+    private Entity entity; // カメラ用のエンティティ（基底クラス、将来的に変更可能）
     private Player player; // プレイヤー
     
     // カメラの状態
@@ -67,13 +72,17 @@ public class CubeCamera {
     public void setup(Player player) {
         this.player = player;
         
-        // 透明でNoAIな椅子（コウモリ）をスポーン
-        entity = (Bat) world.spawnEntity(initialLocation, EntityType.BAT);
+        // 透明で動かない椅子をスポーン
+        LivingEntity entity = (LivingEntity) world.spawnEntity(initialLocation, EntityType.BEE);
         entity.setInvulnerable(true);
         entity.setGravity(false);
         entity.setSilent(true);
         entity.setAI(false); // AIを無効化して完全に動かなくする
         entity.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
+        this.entity = entity;
+        
+        // エンティティの高さを取得（プレイヤーが乗る位置のオフセット）
+        this.entityHeightOffset = entity.getHeight();
         
         // プレイヤーを椅子に乗せる
         entity.addPassenger(player);
@@ -105,8 +114,10 @@ public class CubeCamera {
         cameraCurrentY += (cameraTargetY - cameraCurrentY) * LERP_FACTOR;
         
         // 新しいカメラ位置を計算
+        // プレイヤーの視点がcameraCurrentYになるように、エンティティの高さ分を引く
+        // さらに微調整用の定数を適用
         Location newCameraLoc = initialLocation.clone();
-        newCameraLoc.add(cameraCurrentX, cameraCurrentY, cameraZ);
+        newCameraLoc.add(cameraCurrentX, cameraCurrentY - entityHeightOffset + CAMERA_HEIGHT_ADJUSTMENT, cameraZ);
         newCameraLoc.setYaw(0f);
         newCameraLoc.setPitch(0f);
         
@@ -155,7 +166,7 @@ public class CubeCamera {
     /**
      * エンティティを取得
      */
-    public Bat getEntity() {
+    public Entity getEntity() {
         return entity;
     }
     
