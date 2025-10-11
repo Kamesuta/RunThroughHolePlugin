@@ -86,6 +86,9 @@ public class PlayerCube {
                 }
             }
         }
+        
+        // 初回配置時に正しい位置に更新
+        updateTransformation();
     }
     
     // グリッド位置を移動（XY方向のみ）
