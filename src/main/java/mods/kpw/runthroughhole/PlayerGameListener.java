@@ -201,6 +201,22 @@ public class PlayerGameListener implements Listener {
 
     // WASD入力を処理
     private void handleWASDInput(Player player, PlayerData data, boolean left, boolean right, boolean forward, boolean backward, boolean jump) {
+        // Spaceキーの押下状態を更新して速度を制御
+        boolean wasSpacePressed = data.isSpacePressed;
+        data.isSpacePressed = jump;
+        
+        // 加速状態をキューブに反映
+        if (data.cube != null) {
+            data.cube.setBoosting(jump);
+        }
+        
+        // Spaceキーの状態が変化したときにメッセージを表示
+        if (jump && !wasSpacePressed) {
+            player.sendMessage("加速中！");
+        } else if (!jump && wasSpacePressed) {
+            player.sendMessage("通常速度");
+        }
+        
         long currentTime = System.currentTimeMillis();
         if (currentTime - data.lastMoveTime < COOLDOWN_MS) {
             return; // クールダウン中
@@ -225,7 +241,6 @@ public class PlayerGameListener implements Listener {
             gridMove.y = -1; // S
             direction = "下";
         }
-        // ジャンプは今後の加速機能用に予約
         
         // キューブを移動
         if (gridMove.x != 0 || gridMove.y != 0 || gridMove.z != 0) {

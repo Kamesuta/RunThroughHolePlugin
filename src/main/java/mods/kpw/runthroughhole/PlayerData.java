@@ -16,6 +16,9 @@ public class PlayerData {
     // 位置管理
     public Location initialLocation; // ゲーム開始時の初期位置（不変）
     public long lastMoveTime; // 最後に移動した時刻
+    
+    // 加速機能
+    public boolean isSpacePressed; // Spaceキーが押されているかどうか
 
     public PlayerData() {
         this.currentGuide = null;
@@ -24,6 +27,7 @@ public class PlayerData {
         this.lastCommandTime = 0;
         this.lastMoveTime = 0;
         this.isGameOver = false;
+        this.isSpacePressed = false;
     }
 }
 

@@ -27,8 +27,10 @@ public class PlayerCube {
     public boolean[][][] blockShape = new boolean[3][3][3];
     
     // 自動前進用
-    private static final float FORWARD_SPEED = 0.05f; // 1tickあたりの前進量（ブロック単位）
+    private static final float FORWARD_SPEED = 0.15f; // 1tickあたりの前進量（ブロック単位）
+    private static final float BOOST_SPEED = FORWARD_SPEED * 3; // 加速時の前進量（3倍速）
     private float forwardProgress = 0f; // 前進の進行度（0～1で1マス分）
+    private boolean isBoosting = false; // 加速中かどうか
     
     public float getForwardProgress() {
         return forwardProgress;
@@ -98,9 +100,16 @@ public class PlayerCube {
         updateTransformation();
     }
     
+    // 加速状態を設定
+    public void setBoosting(boolean boosting) {
+        this.isBoosting = boosting;
+    }
+    
     // 自動前進（毎tick呼び出される）- Z軸のテレポートのみ
     public void autoForward() {
-        forwardProgress += FORWARD_SPEED;
+        // 加速中かどうかで速度を変更
+        float currentSpeed = isBoosting ? BOOST_SPEED : FORWARD_SPEED;
+        forwardProgress += currentSpeed;
         
         // 1マス分進んだらグリッド位置を更新
         if (forwardProgress >= 1.0f) {
