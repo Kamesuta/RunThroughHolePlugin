@@ -176,6 +176,28 @@ public class Main extends JavaPlugin {
     public void gameOver(Player player, String reason) {
         gameOver(player, reason, null);
     }
+    
+    /**
+     * 位置をブロックグリッドにスナップ
+     * @param location スナップする位置
+     * @return スナップされた位置（新しいLocationオブジェクト）
+     */
+    private static Location snapToGrid(Location location) {
+        Location snapped = location.clone();
+        
+        // XとZはブロックの中心（0.5）にスナップ
+        snapped.setX(Math.floor(location.getX()) + 0.5);
+        snapped.setZ(Math.floor(location.getZ()) + 0.5);
+        
+        // Yはブロックの下面にスナップ
+        snapped.setY(Math.floor(location.getY()));
+        
+        // 向きを正面（Z+方向）に固定
+        snapped.setYaw(0f);
+        snapped.setPitch(0f);
+        
+        return snapped;
+    }
 
     // ゲーム開始処理
     public void startGame(Player player) {
@@ -185,18 +207,8 @@ public class Main extends JavaPlugin {
             return;
         }
 
-        Location loc = player.getLocation();
-        
         // プレイヤーの位置をブロックグリッドにスナップ
-        double snappedX = Math.floor(loc.getX()) + 0.5; // ブロックの中心
-        double snappedY = Math.floor(loc.getY());       // ブロックの下面
-        double snappedZ = Math.floor(loc.getZ()) + 0.5; // ブロックの中心
-        
-        loc.setX(snappedX);
-        loc.setY(snappedY);
-        loc.setZ(snappedZ);
-        loc.setYaw(0f);
-        loc.setPitch(0f);
+        Location loc = snapToGrid(player.getLocation());
 
         // PlayerDataを作成
         PlayerData data = getOrCreatePlayerData(playerId);
