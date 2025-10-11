@@ -1,5 +1,6 @@
 package mods.kpw.runthroughhole;
 
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 
@@ -11,6 +12,7 @@ public class PlayerData {
     public boolean isPitchOutside; // Pitch方向でGESTURE_THRESHOLD外にいるかどうか
     public long lastCommandTime; // 最後にコマンドを実行した時刻
     public boolean isGameOver; // ゲームオーバー処理中かどうか
+    public GameMode originalGameMode; // ゲーム開始時のゲームモード
     
     // 位置管理
     public Location initialLocation; // ゲーム開始時の初期位置（不変）

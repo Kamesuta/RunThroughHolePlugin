@@ -1,5 +1,6 @@
 package mods.kpw.runthroughhole;
 
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -166,6 +167,23 @@ public class Main extends JavaPlugin {
         // メッセージを送信
         player.sendMessage(Component.text("ゲームオーバー: " + reason, NamedTextColor.RED));
         
+        // すぐにプレイヤーを降車させて、衝突原因を振り返れるようにする
+        if (data.entity != null) {
+            // 椅子の現在位置を取得
+            Location dismountLoc = data.entity.getLocation();
+            
+            // プレイヤーを降車
+            data.entity.eject();
+            
+            // プレイヤーを椅子の位置にテレポート（地面に落ちないように）
+            player.teleport(dismountLoc);
+            
+            // スペクテーターモードに変更（自由に飛び回れる）
+            player.setGameMode(GameMode.SPECTATOR);
+            
+            getLogger().info(player.getName() + "を降車させました（スペクテーターモードで振り返り可能）");
+        }
+        
         // 少し遅延してゲームを終了
         getServer().getScheduler().runTaskLater(this, () -> {
             stopGame(player);
@@ -224,6 +242,9 @@ public class Main extends JavaPlugin {
         // PlayerDataを作成
         PlayerData data = getOrCreatePlayerData(playerId);
         data.initialLocation = loc.clone();
+        
+        // 現在のゲームモードを保存
+        data.originalGameMode = player.getGameMode();
 
         // 透明でNoAIな椅子をスポーン
         Bat entity = (Bat) player.getWorld().spawnEntity(loc, EntityType.BAT);
@@ -267,6 +288,12 @@ public class Main extends JavaPlugin {
         // キューブを削除
         if (data.cube != null) {
             data.cube.remove();
+        }
+        
+        // 元のゲームモードに戻す
+        if (data.originalGameMode != null) {
+            player.setGameMode(data.originalGameMode);
+            getLogger().info(player.getName() + "のゲームモードを" + data.originalGameMode + "に戻しました");
         }
 
         player.sendMessage("ゲームを終了しました。");
