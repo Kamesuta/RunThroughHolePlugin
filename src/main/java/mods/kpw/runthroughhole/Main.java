@@ -277,6 +277,12 @@ public class Main extends JavaPlugin {
             data.cube.remove();
         }
         
+        // 左手（オフハンド）の石のボタンを削除
+        ItemStack offHandItem = player.getInventory().getItemInOffHand();
+        if (offHandItem != null && offHandItem.getType() == Material.STONE_BUTTON) {
+            player.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
+        }
+        
         // 元のゲームモードに戻す
         if (data.originalGameMode != null) {
             player.setGameMode(data.originalGameMode);
