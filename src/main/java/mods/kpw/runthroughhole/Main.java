@@ -45,7 +45,7 @@ public class Main extends JavaPlugin {
         // 自動前進タスクを開始（1tickごと）
         getServer().getScheduler().runTaskTimer(this, () -> {
             for (PlayerData data : playerDataMap.values()) {
-                if (data.cube != null) {
+                if (data.cube != null && !data.isGameOver) {
                     // キューブを前進
                     data.cube.autoForward();
                     
@@ -111,6 +111,18 @@ public class Main extends JavaPlugin {
     
     // ゲームオーバー処理
     public void gameOver(Player player, String reason) {
+        UUID playerId = player.getUniqueId();
+        PlayerData data = playerDataMap.get(playerId);
+        
+        // 既にゲームオーバー処理中の場合は何もしない
+        if (data == null || data.isGameOver) {
+            return;
+        }
+        
+        // ゲームオーバーフラグを立てて重複呼び出しを防ぐ
+        data.isGameOver = true;
+        getLogger().info(player.getName() + "のゲームオーバー処理を開始");
+        
         // タイトルに「GAME OVER」を表示
         Title title = Title.title(
             Component.text("GAME OVER", NamedTextColor.RED),

@@ -52,7 +52,7 @@ public class PlayerGameListener implements Listener {
                 if (player == null) return;
                 
                 PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
-                if (data == null || data.entity == null) return;
+                if (data == null || data.entity == null || data.isGameOver) return;
                 
                 boolean forward, backward, left, right, jump;
                 
@@ -98,7 +98,7 @@ public class PlayerGameListener implements Listener {
                 if (player == null) return;
                 
                 PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
-                if (data == null || data.entity == null) return;
+                if (data == null || data.entity == null || data.isGameOver) return;
                 
                 float yaw, pitch;
                 
@@ -168,8 +168,8 @@ public class PlayerGameListener implements Listener {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
         PlayerData data = plugin.getPlayerData(playerId);
-        if (data == null || data.cube == null)
-            return; // ゲーム中でないプレイヤーは無視
+        if (data == null || data.cube == null || data.isGameOver)
+            return; // ゲーム中でないプレイヤーまたはゲームオーバー中のプレイヤーは無視
 
         // クールダウンチェック
         long currentTime = System.currentTimeMillis();
