@@ -219,6 +219,9 @@ public class Main extends JavaPlugin {
         
         // 現在のゲームモードを保存
         data.originalGameMode = player.getGameMode();
+        
+        // アドベンチャーモードに変更
+        player.setGameMode(GameMode.ADVENTURE);
 
         // キャラのキューブを作成
         data.cube = new PlayerCube(player.getWorld(), loc.clone());
@@ -240,7 +243,17 @@ public class Main extends JavaPlugin {
         }
         player.getInventory().setItemInOffHand(new ItemStack(Material.STONE_BUTTON));
 
-        player.sendMessage("ゲームを開始しました！WASDで上下左右に移動できます。");
+        // 操作説明を表示
+        player.sendMessage("§6§l========== 穴抜けゲーム開始 ==========");
+        player.sendMessage("§c§l目標: §f壁に当たらないように進み続けよう！");
+        player.sendMessage("§e§l【移動操作】");
+        player.sendMessage("§a  W/A/S/D §f- 上下左右に移動");
+        player.sendMessage("§a  Space §f- 加速（長押し可能）");
+        player.sendMessage("§e§l【回転操作】");
+        player.sendMessage("§a  視点を上下左右に動かす §f- キューブをX/Y回転");
+        player.sendMessage("§a  左右クリック §f- キューブをZ回転");
+        player.sendMessage("§6§l=====================================");
+        
         getLogger().info(player.getName() + "がゲームを開始しました。");
     }
 
