@@ -11,6 +11,7 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class PlayerCube {
     // 複数のブロックを管理
@@ -161,38 +162,23 @@ public class PlayerCube {
         }
     }
     
-    // 衝突検出：キューブがMinecraftのブロックと衝突しているかチェック
-    public boolean checkCollision() {
-        for (CubeBlock block : blocks) {
-            // ブロックのワールド座標を計算
-            Location blockWorldLoc = getBlockWorldLocation(block);
-            
-            // その座標のブロックをチェック
-            Block blockAt = world.getBlockAt(blockWorldLoc);
-            Material material = blockAt.getType();
-            if (material != Material.AIR && material != Material.CAVE_AIR && material != Material.VOID_AIR && material != Material.GLASS) {
-                // blockAt.setType(Material.GLASS); // デバッグ用可視化
-                return true; // 衝突あり
-            }
-        }
-        return false; // 衝突なし
-    }
-    
-    // 衝突したブロックのリストを取得
-    public List<CubeBlock> getCollidedBlocks() {
-        List<CubeBlock> collidedBlocks = new ArrayList<>();
-        for (CubeBlock block : blocks) {
-            // ブロックのワールド座標を計算
-            Location blockWorldLoc = getBlockWorldLocation(block);
-            
-            // その座標のブロックをチェック
-            Block blockAt = world.getBlockAt(blockWorldLoc);
-            Material material = blockAt.getType();
-            if (material != Material.AIR && material != Material.CAVE_AIR && material != Material.VOID_AIR && material != Material.GLASS) {
-                collidedBlocks.add(block);
-            }
-        }
-        return collidedBlocks;
+    // 衝突検出：衝突しているブロックのStreamを返す
+    public Stream<CubeBlock> checkCollision() {
+        return blocks.stream()
+            .filter(block -> {
+                // ブロックのワールド座標を計算
+                Location blockWorldLoc = getBlockWorldLocation(block);
+                
+                // その座標のブロックをチェック
+                Block blockAt = world.getBlockAt(blockWorldLoc);
+                Material material = blockAt.getType();
+                
+                // 衝突判定（AIR系とGLASS以外に衝突）
+                return material != Material.AIR 
+                    && material != Material.CAVE_AIR 
+                    && material != Material.VOID_AIR 
+                    && material != Material.GLASS;
+            });
     }
     
     // 特定のブロックの色を変更

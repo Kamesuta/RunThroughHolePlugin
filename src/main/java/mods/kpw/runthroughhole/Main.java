@@ -14,6 +14,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.joml.Vector3f;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -54,13 +55,14 @@ public class Main extends JavaPlugin {
                     // キューブを前進
                     data.cube.autoForward();
                     
-                    // 衝突チェック
-                    if (data.cube.checkCollision()) {
+                    // 衝突チェック（Streamで衝突ブロックを取得）
+                    List<CubeBlock> collidedBlocks = data.cube.checkCollision()
+                        .collect(Collectors.toList());
+                    
+                    if (!collidedBlocks.isEmpty()) {
                         // プレイヤーを取得
                         Player player = getPlayerFromData(data);
                         if (player != null) {
-                            // 衝突したブロックを取得
-                            List<CubeBlock> collidedBlocks = data.cube.getCollidedBlocks();
                             gameOver(player, "ブロックに衝突しました！", collidedBlocks);
                         }
                         continue;
