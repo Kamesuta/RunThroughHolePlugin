@@ -20,6 +20,7 @@ public class CubeCamera {
     private static final double CAMERA_DISTANCE_BEHIND = 10.0; // キューブから後ろに離れる距離
     private static final double CAMERA_HEIGHT_OFFSET = 3.0; // 通常時のカメラの高さオフセット
     private static final double LERP_FACTOR = 0.1; // カメラのスムーズ移動速度
+    private static final double CAMERA_RETURN_MARGIN = 1.0; // カメラを戻すまでの余裕距離（ブロック単位）
     
     // カメラ位置の微調整用定数（正の値で上、負の値で下）
     private static final double CAMERA_HEIGHT_ADJUSTMENT = -1.0; // カメラの高さ微調整（ブロック単位）
@@ -138,17 +139,18 @@ public class CubeCamera {
             if (!isInHole) {
                 // 初めて穴を検出した→目標位置をキューブの中心位置に設定
                 isInHole = true;
-                lastHoleLocation = holeLocation.clone();
                 cameraTargetX = holeLocation.getX() - initialLocation.getX();
                 cameraTargetY = holeLocation.getY() - initialLocation.getY();
             }
+            // 穴を検出し続けている間、lastHoleLocationを更新し続ける（長いトンネル対応）
+            lastHoleLocation = holeLocation.clone();
             // 穴にフォーカス中は目標位置を更新しない（カメラ固定）
         } else {
             // 穴が見つからない場合
             if (isInHole) {
-                // カメラが穴のZ座標を超えたかチェック
-                if (lastHoleLocation != null && cameraAbsoluteZ > lastHoleLocation.getZ()) {
-                    // カメラが穴を通過した→穴モードを解除
+                // カメラが穴のZ座標+余裕マージンを超えたかチェック
+                if (lastHoleLocation != null && cameraAbsoluteZ > lastHoleLocation.getZ() + CAMERA_RETURN_MARGIN) {
+                    // カメラが穴を十分通過した→穴モードを解除
                     isInHole = false;
                     lastHoleLocation = null;
                 }
