@@ -6,6 +6,7 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
@@ -228,6 +229,16 @@ public class Main extends JavaPlugin {
 
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);
+
+        // 左手（オフハンド）に石のボタンを配布
+        ItemStack offHandItem = player.getInventory().getItemInOffHand();
+        if (offHandItem != null && offHandItem.getType() != Material.AIR) {
+            // 石のボタン以外のアイテムを持っていたらドロップ
+            if (offHandItem.getType() != Material.STONE_BUTTON) {
+                player.getWorld().dropItem(player.getLocation(), offHandItem);
+            }
+        }
+        player.getInventory().setItemInOffHand(new ItemStack(Material.STONE_BUTTON));
 
         player.sendMessage("ゲームを開始しました！WASDで上下左右に移動できます。");
         getLogger().info(player.getName() + "がゲームを開始しました。");
