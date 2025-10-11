@@ -227,10 +227,15 @@ public class PlayerGameListener implements Listener {
             gridMove.y = -1; // S
         }
         
-        // キューブを移動
+        // キューブを移動（移動先に衝突がない場合のみ）
         if (gridMove.x != 0 || gridMove.y != 0 || gridMove.z != 0) {
-            data.cube.move(gridMove);
-            data.lastMoveTime = currentTime;
+            // 移動先で衝突するかチェック
+            if (!data.cube.wouldCollideAt(gridMove)) {
+                // 衝突しない場合のみ移動
+                data.cube.move(gridMove);
+                data.lastMoveTime = currentTime;
+            }
+            // 衝突する場合は移動をキャンセル（何もしない）
         }
     }
     

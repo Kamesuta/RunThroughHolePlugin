@@ -176,10 +176,15 @@ public class PlayerCube {
     
     // 衝突検出：衝突しているブロックのStreamを返す
     public Stream<CubeBlock> checkCollision() {
+        return checkCollision(new Vector3f(0, 0, 0));
+    }
+    
+    // 衝突検出（オフセット指定可能）：衝突しているブロックのStreamを返す
+    public Stream<CubeBlock> checkCollision(Vector3f positionOffset) {
         return blocks.stream()
             .filter(block -> {
                 // ブロックのワールド座標を計算
-                Location blockWorldLoc = getBlockWorldLocation(block);
+                Location blockWorldLoc = getBlockWorldLocation(block, positionOffset);
                 
                 // その座標のブロックをチェック
                 Block blockAt = world.getBlockAt(blockWorldLoc);
@@ -191,6 +196,12 @@ public class PlayerCube {
                     && material != Material.VOID_AIR 
                     && material != Material.GLASS;
             });
+    }
+    
+    // 移動先で衝突するかチェック（移動前の判定用）
+    public boolean wouldCollideAt(Vector3f delta) {
+        // checkCollisionを流用して、移動先で衝突するブロックがあるかチェック
+        return checkCollision(delta).findAny().isPresent();
     }
     
     // 穴開き壁を検出：キューブの中心位置を返す（穴がない場合はnull）
@@ -247,21 +258,16 @@ public class PlayerCube {
         return null;
     }
     
-    // 各ブロックのワールド座標を計算
-    private Location getBlockWorldLocation(CubeBlock block) {
-        return getBlockWorldLocation(block, 0.0);
-    }
-    
-    // 各ブロックのワールド座標を計算（Zオフセット指定可能）
-    private Location getBlockWorldLocation(CubeBlock block, double zOffset) {
+    // 各ブロックのワールド座標を計算（位置オフセット指定可能）
+    private Location getBlockWorldLocation(CubeBlock block, Vector3f positionOffset) {
         // ブロックのローカルオフセットに回転を適用
         Vector3f rotatedOffset = new Vector3f(block.offset);
         rotatedOffset.rotate(rotation);
         
         // ワールド座標を計算（ブロックの中心座標に合わせるため0.5を加える）
-        double worldX = baseLocation.getX() - 0.5 + gridPosition.x + rotatedOffset.x;
-        double worldY = baseLocation.getY() + 1.0 + gridPosition.y + rotatedOffset.y; // 1マス下げる
-        double worldZ = baseLocation.getZ() + 0.5 + gridPosition.z + forwardProgress + rotatedOffset.z + zOffset;
+        double worldX = baseLocation.getX() - 0.5 + gridPosition.x + positionOffset.x + rotatedOffset.x;
+        double worldY = baseLocation.getY() + 1.0 + gridPosition.y + positionOffset.y + rotatedOffset.y; // 1マス下げる
+        double worldZ = baseLocation.getZ() + 0.5 + gridPosition.z + positionOffset.z + forwardProgress + rotatedOffset.z;
         
         return new Location(world, 
             Math.floor(worldX), 
