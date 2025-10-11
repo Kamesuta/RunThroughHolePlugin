@@ -184,13 +184,11 @@ public class PlayerGameListener implements Listener {
         // 左クリック：反時計回りRoll回転
         if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
             newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, 0, 1);
-            player.sendMessage("反時計回りにRoll回転");
             shouldRotate = true;
         }
         // 右クリック：時計回りRoll回転
         else if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
             newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 0, 1);
-            player.sendMessage("時計回りにRoll回転");
             shouldRotate = true;
         }
 
@@ -202,19 +200,11 @@ public class PlayerGameListener implements Listener {
     // WASD入力を処理
     private void handleWASDInput(Player player, PlayerData data, boolean left, boolean right, boolean forward, boolean backward, boolean jump) {
         // Spaceキーの押下状態を更新して速度を制御
-        boolean wasSpacePressed = data.isSpacePressed;
         data.isSpacePressed = jump;
         
         // 加速状態をキューブに反映
         if (data.cube != null) {
             data.cube.setBoosting(jump);
-        }
-        
-        // Spaceキーの状態が変化したときにメッセージを表示
-        if (jump && !wasSpacePressed) {
-            player.sendMessage("加速中！");
-        } else if (!jump && wasSpacePressed) {
-            player.sendMessage("通常速度");
         }
         
         long currentTime = System.currentTimeMillis();
@@ -223,30 +213,24 @@ public class PlayerGameListener implements Listener {
         }
         
         Vector3f gridMove = new Vector3f(0, 0, 0);
-        String direction = "";
         
         // 左右移動（A/D）
         if (left && !right) {
             gridMove.x = 1; // A
-            direction = "左";
         } else if (right && !left) {
             gridMove.x = -1; // D
-            direction = "右";
         }
         // 上下移動（W/S）
         else if (forward && !backward) {
             gridMove.y = 1; // W
-            direction = "上";
         } else if (backward && !forward) {
             gridMove.y = -1; // S
-            direction = "下";
         }
         
         // キューブを移動
         if (gridMove.x != 0 || gridMove.y != 0 || gridMove.z != 0) {
             data.cube.move(gridMove);
             data.lastMoveTime = currentTime;
-            player.sendMessage(direction + "に移動");
         }
     }
     
@@ -269,10 +253,8 @@ public class PlayerGameListener implements Listener {
             Quaternionf newRotation = new Quaternionf();
             if (yawDiff > 0) { // 右
                 newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, 1, 0);
-                player.sendMessage("右に回転（Yaw軸）");
             } else { // 左
                 newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 1, 0);
-                player.sendMessage("左に回転（Yaw軸）");
             }
             applyRotation(playerId, newRotation);
             data.isYawOutside = true;
@@ -285,10 +267,8 @@ public class PlayerGameListener implements Listener {
             Quaternionf newRotation = new Quaternionf();
             if (pitchDiff > 0) { // 下
                 newRotation.rotateAxis((float) Math.toRadians(-90.0f), -1, 0, 0);
-                player.sendMessage("下に回転（Pitch軸）");
             } else { // 上
                 newRotation.rotateAxis((float) Math.toRadians(90.0f), -1, 0, 0);
-                player.sendMessage("上に回転（Pitch軸）");
             }
             applyRotation(playerId, newRotation);
             data.isPitchOutside = true;
