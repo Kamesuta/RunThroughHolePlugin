@@ -184,6 +184,45 @@ public class PlayerCube {
             });
     }
     
+    // 穴開き壁を検出：キューブの中心位置を返す（穴がない場合はnull）
+    public Location detectHole() {
+        // キューブの現在のZ座標で5x5マスをチェック
+        double currentZ = baseLocation.getZ() + gridPosition.z + forwardProgress;
+        int checkZ = (int) Math.floor(currentZ);
+        
+        // キューブの中心位置（XY）を計算
+        double centerX = baseLocation.getX() + gridPosition.x;
+        double centerY = baseLocation.getY() + 1.0 + gridPosition.y;
+        int centerBlockX = (int) Math.floor(centerX);
+        int centerBlockY = (int) Math.floor(centerY);
+        
+        // 5x5範囲でブロックとAIRをカウント
+        int blockCount = 0;
+        int airCount = 0;
+        
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = -2; dy <= 2; dy++) {
+                Location checkLoc = new Location(world, centerBlockX + dx, centerBlockY + dy, checkZ);
+                Block block = world.getBlockAt(checkLoc);
+                Material material = block.getType();
+                
+                if (material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR) {
+                    airCount++;
+                } else {
+                    blockCount++;
+                }
+            }
+        }
+        
+        // ブロックが10個以上あり、AIRが3個以上あれば「穴開き壁」と判定
+        if (blockCount >= 10 && airCount >= 3) {
+            // キューブの中心位置を返す（プレイヤーの頭の位置がここに来るように調整される）
+            return new Location(world, centerX, centerY, checkZ);
+        }
+        
+        return null;
+    }
+    
     // 特定のブロックの色を変更
     public void changeBlockColor(CubeBlock block, Material material) {
         if (block != null && block.display != null) {

@@ -195,17 +195,57 @@ public class Main extends JavaPlugin {
         gameOver(player, reason, null);
     }
     
-    // カメラ位置を更新（キューブから10マス後ろ）
+    // カメラ位置を更新（キューブから10マス後ろ、通常時は2マス上、XY平面はスムーズに移動）
     private void updateCameraPosition(PlayerData data) {
         Vector3f cubeGridPos = data.cube.gridPosition;
         float cubeForwardProgress = data.cube.getForwardProgress();
         
-        // キューブのZ位置から10マス後ろ
+        // キューブのZ位置から10マス後ろ（固定）
         double cameraZ = cubeGridPos.z + cubeForwardProgress - 10.0;
+        
+        // カメラの絶対Z座標を計算
+        double cameraAbsoluteZ = data.initialLocation.getZ() + cameraZ;
+        
+        // 穴を検出
+        Location holeLocation = data.cube.detectHole();
+        
+        if (holeLocation != null) {
+            // 穴が見つかった場合
+            if (!data.isInHole) {
+                // 初めて穴を検出した→目標位置をキューブの中心位置に設定
+                data.isInHole = true;
+                data.lastHoleLocation = holeLocation.clone();
+                data.cameraTargetX = holeLocation.getX() - data.initialLocation.getX();
+                data.cameraTargetY = holeLocation.getY() - data.initialLocation.getY();
+            }
+            // 穴にフォーカス中は目標位置を更新しない（カメラ固定）
+        } else {
+            // 穴が見つからない場合
+            if (data.isInHole) {
+                // カメラが穴のZ座標を超えたかチェック
+                if (data.lastHoleLocation != null && cameraAbsoluteZ > data.lastHoleLocation.getZ()) {
+                    // カメラが穴を通過した→穴モードを解除
+                    data.isInHole = false;
+                    data.lastHoleLocation = null;
+                }
+                // まだカメラが穴を通過していない場合は、目標位置を変更しない（カメラ固定継続）
+            }
+            
+            if (!data.isInHole) {
+                // 通常時：キューブの位置+2マス上を目標にする
+                data.cameraTargetX = cubeGridPos.x;
+                data.cameraTargetY = cubeGridPos.y + 2.0;
+            }
+        }
+        
+        // 現在位置を目標位置に向けてスムーズに補間
+        double lerpFactor = 0.1; // ゆっくり移動
+        data.cameraCurrentX += (data.cameraTargetX - data.cameraCurrentX) * lerpFactor;
+        data.cameraCurrentY += (data.cameraTargetY - data.cameraCurrentY) * lerpFactor;
         
         // 初期位置を基準に新しい位置を計算
         Location newCameraLoc = data.initialLocation.clone();
-        newCameraLoc.add(0, 0, cameraZ);
+        newCameraLoc.add(data.cameraCurrentX, data.cameraCurrentY, cameraZ);
         newCameraLoc.setYaw(0f);
         newCameraLoc.setPitch(0f);
         
