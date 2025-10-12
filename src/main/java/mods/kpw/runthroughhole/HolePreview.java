@@ -17,6 +17,12 @@ public class HolePreview {
     private World world;
     private List<BlockDisplay> previewPanels;
     
+    // 前回の状態を保存（変化がない場合は更新しない）
+    private int lastWallZ = Integer.MIN_VALUE;
+    private int lastCubeX = Integer.MIN_VALUE;
+    private int lastCubeY = Integer.MIN_VALUE;
+    private String lastRotation = "";
+    
     public HolePreview(World world) {
         this.world = world;
         this.previewPanels = new ArrayList<>();
@@ -28,9 +34,6 @@ public class HolePreview {
      * @param baseLocation 基準位置
      */
     public void update(PlayerCube cube, Location baseLocation) {
-        // 既存のプレビューをクリア
-        clear();
-        
         // 前方の壁を探索（キューブの現在位置から前方5〜10ブロック先）
         double currentZ = baseLocation.getZ() + cube.gridPosition.z + cube.getForwardProgress();
         
@@ -38,7 +41,12 @@ public class HolePreview {
         Location wallLocation = findNextWall(cube, baseLocation, currentZ + 5, currentZ + 20);
         
         if (wallLocation == null) {
-            return; // 壁が見つからなかった
+            // 壁が見つからなかった場合、プレビューをクリア
+            if (!previewPanels.isEmpty()) {
+                clear();
+                lastWallZ = Integer.MIN_VALUE;
+            }
+            return;
         }
         
         // 壁のZ座標
@@ -49,6 +57,26 @@ public class HolePreview {
         double centerY = baseLocation.getY() + 1.0 + cube.gridPosition.y;
         int centerBlockX = (int) Math.floor(centerX);
         int centerBlockY = (int) Math.floor(centerY);
+        
+        // 回転を文字列化（比較用）
+        String currentRotation = cube.rotation.toString();
+        
+        // 前回と状態が同じ場合は更新しない（チカチカ防止）
+        if (wallZ == lastWallZ && 
+            centerBlockX == lastCubeX && 
+            centerBlockY == lastCubeY && 
+            currentRotation.equals(lastRotation)) {
+            return; // 変化なし、更新不要
+        }
+        
+        // 状態を保存
+        lastWallZ = wallZ;
+        lastCubeX = centerBlockX;
+        lastCubeY = centerBlockY;
+        lastRotation = currentRotation;
+        
+        // 既存のプレビューをクリア
+        clear();
         
         // キューブの形状と回転を使って、通過可能な穴を検出
         // 3x3x3のキューブの各ブロックが壁のどこに当たるかをチェック
