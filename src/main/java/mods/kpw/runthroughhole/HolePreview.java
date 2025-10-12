@@ -7,25 +7,23 @@ import org.bukkit.entity.BlockDisplay;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 前方の壁の穴に対してプレビュー表示を行うクラス
  */
 public class HolePreview {
     private World world;
-    private List<BlockDisplay> previewPanels;
     
-    // 前回の状態を保存（変化がない場合は更新しない）
-    private int lastWallZ = Integer.MIN_VALUE;
-    private int lastCubeX = Integer.MIN_VALUE;
-    private int lastCubeY = Integer.MIN_VALUE;
-    private String lastRotation = "";
+    // 位置をキーとしてパネルを管理（差分更新用）
+    private Map<String, BlockDisplay> previewPanelMap;
     
     public HolePreview(World world) {
         this.world = world;
-        this.previewPanels = new ArrayList<>();
+        this.previewPanelMap = new HashMap<>();
     }
     
     /**
@@ -42,9 +40,8 @@ public class HolePreview {
         
         if (wallLocation == null) {
             // 壁が見つからなかった場合、プレビューをクリア
-            if (!previewPanels.isEmpty()) {
+            if (!previewPanelMap.isEmpty()) {
                 clear();
-                lastWallZ = Integer.MIN_VALUE;
             }
             return;
         }
@@ -58,25 +55,8 @@ public class HolePreview {
         int centerBlockX = (int) Math.floor(centerX);
         int centerBlockY = (int) Math.floor(centerY);
         
-        // 回転を文字列化（比較用）
-        String currentRotation = cube.rotation.toString();
-        
-        // 前回と状態が同じ場合は更新しない（チカチカ防止）
-        if (wallZ == lastWallZ && 
-            centerBlockX == lastCubeX && 
-            centerBlockY == lastCubeY && 
-            currentRotation.equals(lastRotation)) {
-            return; // 変化なし、更新不要
-        }
-        
-        // 状態を保存
-        lastWallZ = wallZ;
-        lastCubeX = centerBlockX;
-        lastCubeY = centerBlockY;
-        lastRotation = currentRotation;
-        
-        // 既存のプレビューをクリア
-        clear();
+        // 現在必要なパネル位置のセットを作成
+        Set<String> currentPositions = new HashSet<>();
         
         // キューブの形状と回転を使って、通過可能な穴を検出
         // 3x3x3のキューブの各ブロックが壁のどこに当たるかをチェック
@@ -97,13 +77,34 @@ public class HolePreview {
                         Material material = world.getBlockAt(checkLoc).getType();
                         
                         if (material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR) {
-                            // この位置にプレビューパネルを表示（壁の1マス手前）
-                            Location previewLoc = new Location(world, blockX, blockY, wallZ - 1);
-                            createPreviewPanel(previewLoc);
+                            // この位置にプレビューパネルが必要
+                            int previewZ = wallZ - 1;
+                            String posKey = blockX + "," + blockY + "," + previewZ;
+                            currentPositions.add(posKey);
+                            
+                            // 既存のパネルがない場合のみ作成
+                            if (!previewPanelMap.containsKey(posKey)) {
+                                Location previewLoc = new Location(world, blockX, blockY, previewZ);
+                                BlockDisplay display = createPreviewPanel(previewLoc);
+                                previewPanelMap.put(posKey, display);
+                            }
                         }
                     }
                 }
             }
+        }
+        
+        // 不要になったパネルを削除
+        Set<String> toRemove = new HashSet<>();
+        for (String posKey : previewPanelMap.keySet()) {
+            if (!currentPositions.contains(posKey)) {
+                BlockDisplay display = previewPanelMap.get(posKey);
+                display.remove();
+                toRemove.add(posKey);
+            }
+        }
+        for (String posKey : toRemove) {
+            previewPanelMap.remove(posKey);
         }
     }
     
@@ -153,8 +154,9 @@ public class HolePreview {
     /**
      * プレビューパネルを作成
      * @param location パネルの位置
+     * @return 作成されたBlockDisplay
      */
-    private void createPreviewPanel(Location location) {
+    private BlockDisplay createPreviewPanel(Location location) {
         // BlockDisplayをスポーン（ブロックの中心）
         Location spawnLoc = location.clone().add(0.5, 0.5, 0.5);
         BlockDisplay display = world.spawn(spawnLoc, BlockDisplay.class);
@@ -176,21 +178,21 @@ public class HolePreview {
         
         display.setTransformation(transformation);
         
-        // Interpolationの設定
-        display.setInterpolationDuration(5); // 5tick = 0.25秒でスムーズに表示
+        // Interpolationの設定（即座に表示してチラつきを防止）
+        display.setInterpolationDuration(0);
         display.setInterpolationDelay(0);
         
-        previewPanels.add(display);
+        return display;
     }
     
     /**
      * プレビューをクリア
      */
     public void clear() {
-        for (BlockDisplay display : previewPanels) {
+        for (BlockDisplay display : previewPanelMap.values()) {
             display.remove();
         }
-        previewPanels.clear();
+        previewPanelMap.clear();
     }
     
     /**
