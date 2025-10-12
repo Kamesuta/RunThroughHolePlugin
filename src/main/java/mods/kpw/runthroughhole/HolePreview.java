@@ -55,11 +55,10 @@ public class HolePreview {
         int centerBlockX = (int) Math.floor(centerX);
         int centerBlockY = (int) Math.floor(centerY);
         
-        // 現在必要なパネル位置のセットを作成
-        Set<String> currentPositions = new HashSet<>();
+        // まず、キューブの全ブロックが壁を通れるかチェック
+        boolean canPassThrough = true;
         
-        // キューブの形状と回転を使って、通過可能な穴を検出
-        // 3x3x3のキューブの各ブロックが壁のどこに当たるかをチェック
+        // キューブの形状と回転を使って、各ブロックの位置をチェック
         for (int x = 0; x < 3; x++) {
             for (int y = 0; y < 3; y++) {
                 for (int z = 0; z < 3; z++) {
@@ -76,18 +75,54 @@ public class HolePreview {
                         Location checkLoc = new Location(world, blockX, blockY, wallZ);
                         Material material = world.getBlockAt(checkLoc).getType();
                         
-                        if (material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR) {
-                            // この位置にプレビューパネルが必要
-                            int previewZ = wallZ - 1;
-                            String posKey = blockX + "," + blockY + "," + previewZ;
-                            currentPositions.add(posKey);
-                            
-                            // 既存のパネルがない場合のみ作成
-                            if (!previewPanelMap.containsKey(posKey)) {
-                                Location previewLoc = new Location(world, blockX, blockY, previewZ);
-                                BlockDisplay display = createPreviewPanel(previewLoc);
-                                previewPanelMap.put(posKey, display);
+                        // 1つでも壁にぶつかる場合は通れない
+                        if (material != Material.AIR && material != Material.CAVE_AIR && material != Material.VOID_AIR) {
+                            canPassThrough = false;
+                            break;
+                        }
+                    }
+                }
+                if (!canPassThrough) break;
+            }
+            if (!canPassThrough) break;
+        }
+        
+        // パネルの色を決定（通れるなら緑、通れないなら白）
+        Material panelMaterial = canPassThrough ? Material.LIME_STAINED_GLASS : Material.WHITE_STAINED_GLASS;
+        
+        // 現在必要なパネル位置のセットを作成
+        Set<String> currentPositions = new HashSet<>();
+        
+        // キューブの全ブロック位置にプレビューパネルを表示
+        for (int x = 0; x < 3; x++) {
+            for (int y = 0; y < 3; y++) {
+                for (int z = 0; z < 3; z++) {
+                    if (cube.blockShape[x][y][z]) {
+                        // このブロックの回転後の位置を計算
+                        Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
+                        offset.rotate(cube.rotation);
+                        
+                        // 壁上の座標
+                        int blockX = centerBlockX + Math.round(offset.x);
+                        int blockY = centerBlockY + Math.round(offset.y);
+                        
+                        // この位置にプレビューパネルが必要（壁の1マス手前）
+                        int previewZ = wallZ - 1;
+                        String posKey = blockX + "," + blockY + "," + previewZ;
+                        currentPositions.add(posKey);
+                        
+                        // 既存のパネルがある場合は色を更新、ない場合は作成
+                        if (previewPanelMap.containsKey(posKey)) {
+                            BlockDisplay existingDisplay = previewPanelMap.get(posKey);
+                            // 色が変わった場合のみ更新
+                            if (existingDisplay.getBlock().getMaterial() != panelMaterial) {
+                                existingDisplay.setBlock(panelMaterial.createBlockData());
                             }
+                        } else {
+                            // 新規作成
+                            Location previewLoc = new Location(world, blockX, blockY, previewZ);
+                            BlockDisplay display = createPreviewPanel(previewLoc, panelMaterial);
+                            previewPanelMap.put(posKey, display);
                         }
                     }
                 }
@@ -154,13 +189,14 @@ public class HolePreview {
     /**
      * プレビューパネルを作成
      * @param location パネルの位置
+     * @param material パネルのマテリアル
      * @return 作成されたBlockDisplay
      */
-    private BlockDisplay createPreviewPanel(Location location) {
+    private BlockDisplay createPreviewPanel(Location location, Material material) {
         // BlockDisplayをスポーン（ブロックの中心）
         Location spawnLoc = location.clone().add(0.5, 0.5, 0.5);
         BlockDisplay display = world.spawn(spawnLoc, BlockDisplay.class);
-        display.setBlock(Material.LIME_STAINED_GLASS.createBlockData());
+        display.setBlock(material.createBlockData());
         
         // Transformationを設定（0.8x0.8x0.1の薄型パネル）
         Transformation transformation = display.getTransformation();
