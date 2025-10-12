@@ -34,11 +34,11 @@ public class HolePreview {
      * @param baseLocation 基準位置
      */
     public void update(PlayerCube cube, Location baseLocation) {
-        // 前方の壁を探索（キューブの現在位置から前方5〜10ブロック先）
+        // 前方の壁を探索
         double currentZ = baseLocation.getZ() + cube.gridPosition.z + cube.getForwardProgress();
         
-        // 5ブロック先から20ブロック先まで探索
-        Location wallLocation = findNextWall(cube, baseLocation, currentZ + 5, currentZ + 20);
+        // キューブの前方1ブロック先から20ブロック先まで探索（キューブが壁に入るまで検出できるように）
+        Location wallLocation = findNextWall(cube, baseLocation, currentZ + 1, currentZ + 20);
         
         if (wallLocation == null) {
             // 壁が見つからなかった場合、プレビューをクリア
