@@ -145,8 +145,11 @@ public class PlayerGameListener implements Listener {
         data.lastCommandTime = System.currentTimeMillis();
         
         // プレビューを更新（回転により通過可能な穴が変わる可能性があるため）
-        if (data.preview != null && data.initialLocation != null) {
-            data.preview.update(data.cube, data.initialLocation);
+        if (data.preview != null && data.initialLocation != null && data.camera != null) {
+            Player player = data.camera.getPlayer();
+            if (player != null) {
+                data.preview.update(data.cube, data.initialLocation, player);
+            }
         }
     }
 
@@ -242,7 +245,7 @@ public class PlayerGameListener implements Listener {
                 
                 // プレビューを更新（移動により壁との位置関係が変わる可能性があるため）
                 if (data.preview != null && data.initialLocation != null) {
-                    data.preview.update(data.cube, data.initialLocation);
+                    data.preview.update(data.cube, data.initialLocation, player);
                 }
             }
             // 衝突する場合は移動をキャンセル（何もしない）

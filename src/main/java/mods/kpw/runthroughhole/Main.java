@@ -70,8 +70,11 @@ public class Main extends JavaPlugin {
                     }
                     
                     // プレビューを更新
-                    if (data.preview != null && data.initialLocation != null) {
-                        data.preview.update(data.cube, data.initialLocation);
+                    if (data.preview != null && data.initialLocation != null && data.camera != null) {
+                        Player player = data.camera.getPlayer();
+                        if (player != null) {
+                            data.preview.update(data.cube, data.initialLocation, player);
+                        }
                     }
                 }
             }
@@ -236,7 +239,7 @@ public class Main extends JavaPlugin {
         data.camera.setup(player);
         
         // プレビュー表示を作成
-        data.preview = new HolePreview(player.getWorld());
+        data.preview = new HolePreview(player.getWorld(), this);
 
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);

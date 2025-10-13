@@ -2,8 +2,11 @@ package mods.kpw.runthroughhole;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.Player;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
@@ -21,17 +24,34 @@ public class HolePreview {
     // 位置をキーとしてパネルを管理（差分更新用）
     private Map<String, BlockDisplay> previewPanelMap;
     
-    public HolePreview(World world) {
+    // 壁ごとの穴追跡（壁のZ座標をキー）
+    private Map<Integer, Set<String>> wallHoles; // 壁の全穴位置
+    private Map<Integer, Set<String>> tracedHoles; // なぞった穴位置
+    private Set<Integer> completedWalls; // 完了した壁のZ座標
+    
+    
+    // 前回の通過可否状態（白→緑の変化を検出するため）
+    private Boolean lastCanPassThrough = null;
+    
+    
+    // 完了した壁のZ座標（カメラと同じように、マージンを超えるまで保持）
+    private static final double WALL_PASS_MARGIN = 1.0; // 壁通過判定のマージン
+    
+    public HolePreview(World world, Main plugin) {
         this.world = world;
         this.previewPanelMap = new HashMap<>();
+        this.wallHoles = new HashMap<>();
+        this.tracedHoles = new HashMap<>();
+        this.completedWalls = new HashSet<>();
     }
     
     /**
      * プレビューを更新
      * @param cube プレイヤーのキューブ
      * @param baseLocation 基準位置
+     * @param player プレイヤー（エフェクト用）
      */
-    public void update(PlayerCube cube, Location baseLocation) {
+    public void update(PlayerCube cube, Location baseLocation, Player player) {
         // 前方の壁を探索
         double currentZ = baseLocation.getZ() + cube.gridPosition.z + cube.getForwardProgress();
         
@@ -39,21 +59,42 @@ public class HolePreview {
         Location wallLocation = findNextWall(cube, baseLocation, currentZ + 1, currentZ + 20);
         
         if (wallLocation == null) {
-            // 壁が見つからなかった場合、プレビューをクリア
-            if (!previewPanelMap.isEmpty()) {
-                clear();
-            }
+            // 壁が見つからなかった場合 → すべてのデータをクリア
+            clear();
             return;
         }
-        
-        // 壁のZ座標
-        int wallZ = wallLocation.getBlockZ();
         
         // キューブの中心位置（XY）を計算
         double centerX = baseLocation.getX() + cube.gridPosition.x;
         double centerY = baseLocation.getY() + 1.0 + cube.gridPosition.y;
         int centerBlockX = (int) Math.floor(centerX);
         int centerBlockY = (int) Math.floor(centerY);
+        
+        // キューブの現在Z座標（絶対座標）
+        double cubeAbsoluteZ = baseLocation.getZ() + cube.gridPosition.z + cube.getForwardProgress();
+        
+        // 壁のZ座標
+        int wallZ = wallLocation.getBlockZ();
+        
+        // 通過中かチェック（PlayerCubeの共通ロジックを使用）
+        if (cube.isInHole()) {
+            // 通過中はプレビュー処理を停止（パネルは表示したまま）
+            return;
+        }
+        
+        // 完了済みの壁を通過したかチェック（カメラと同じロジック）
+        Set<Integer> wallsToCleanup = new HashSet<>();
+        for (Integer completedWallZ : completedWalls) {
+            if (cubeAbsoluteZ > completedWallZ + WALL_PASS_MARGIN) {
+                // 完了した壁をマージン分超えて通過した → データをクリア
+                wallsToCleanup.add(completedWallZ);
+            }
+        }
+        for (Integer wallZToCleanup : wallsToCleanup) {
+            completedWalls.remove(wallZToCleanup);
+            wallHoles.remove(wallZToCleanup);
+            tracedHoles.remove(wallZToCleanup);
+        }
         
         // まず、キューブの全ブロックが壁を通れるかチェック
         boolean canPassThrough = true;
@@ -89,6 +130,115 @@ public class HolePreview {
         
         // パネルの色を決定（通れるなら緑、通れないなら白）
         Material panelMaterial = canPassThrough ? Material.LIME_STAINED_GLASS : Material.WHITE_STAINED_GLASS;
+        
+        // 穴から出たことを検出（PlayerCube.hasHoleStateChanged()を使用）
+        if (cube.hasHoleStateChanged() && !cube.isInHole()) {
+            // 穴の中にいた → 穴から出た
+            // この壁のなぞり状態をリセット（再挑戦可能にする）
+            if (tracedHoles.containsKey(wallZ)) {
+                tracedHoles.get(wallZ).clear();
+            }
+            // 完了済みの壁も再挑戦できるようにする
+            if (completedWalls.contains(wallZ)) {
+                completedWalls.remove(wallZ);
+            }
+        }
+        
+        // 白→緑の変化を検出（通れない→通れるに変わった）
+        if (lastCanPassThrough != null && !lastCanPassThrough && canPassThrough) {
+            // 白から緑に変わった → なぞり直しなので tracedHoles をクリア
+            if (tracedHoles.containsKey(wallZ)) {
+                tracedHoles.get(wallZ).clear();
+            }
+            // 完了済みの壁も再挑戦できるようにする
+            if (completedWalls.contains(wallZ)) {
+                completedWalls.remove(wallZ);
+            }
+        }
+        
+        // 現在の状態を記録
+        lastCanPassThrough = canPassThrough;
+        
+        // この壁の穴位置を記録（初回または完了後の再挑戦）
+        // 壁の穴は固定位置なので、キューブの回転に関係なく、壁の5x5範囲をチェック
+        if (!wallHoles.containsKey(wallZ)) {
+            Set<String> holes = new HashSet<>();
+            
+            // 壁の5x5範囲で穴（AIR）をチェック
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dy = -2; dy <= 2; dy++) {
+                    int blockX = centerBlockX + dx;
+                    int blockY = centerBlockY + dy;
+                    
+                    Location checkLoc = new Location(world, blockX, blockY, wallZ);
+                    Material material = world.getBlockAt(checkLoc).getType();
+                    
+                    if (material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR) {
+                        String holeKey = blockX + "," + blockY + "," + wallZ;
+                        holes.add(holeKey);
+                    }
+                }
+            }
+            
+            if (!holes.isEmpty()) {
+                wallHoles.put(wallZ, holes);
+                tracedHoles.put(wallZ, new HashSet<>());
+            }
+        }
+        
+        // 現在プレビュー表示されている穴をなぞったとして記録
+        // ★重要：緑（通れる）の時だけなぞり判定を行う
+        if (canPassThrough && wallHoles.containsKey(wallZ) && !completedWalls.contains(wallZ)) {
+            Set<String> currentlyTracedHoles = tracedHoles.get(wallZ);
+            for (int x = 0; x < 3; x++) {
+                for (int y = 0; y < 3; y++) {
+                    for (int z = 0; z < 3; z++) {
+                        if (cube.blockShape[x][y][z]) {
+                            Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
+                            offset.rotate(cube.rotation);
+                            int blockX = centerBlockX + Math.round(offset.x);
+                            int blockY = centerBlockY + Math.round(offset.y);
+                            
+                            Location checkLoc = new Location(world, blockX, blockY, wallZ);
+                            Material material = world.getBlockAt(checkLoc).getType();
+                            
+                            if (material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR) {
+                                String holeKey = blockX + "," + blockY + "," + wallZ;
+                                
+                                // 初めてなぞった場合のみパーティクルを表示
+                                if (!currentlyTracedHoles.contains(holeKey)) {
+                                    currentlyTracedHoles.add(holeKey);
+                                    showTraceEffect(blockX, blockY, wallZ);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // すべての穴をなぞったかチェック
+            Set<String> allHoles = wallHoles.get(wallZ);
+            if (currentlyTracedHoles.size() >= allHoles.size() && currentlyTracedHoles.containsAll(allHoles)) {
+                // すべての穴をなぞった！まだ完了していなければエフェクトを出す
+                if (!completedWalls.contains(wallZ)) {
+                    completedWalls.add(wallZ);
+                    
+                    // 完了メッセージを送信
+                    if (player != null) {
+                        player.sendMessage("§a§l★壁の穴をすべてなぞりました！ (" + allHoles.size() + "個)");
+                    }
+                    
+                    // 完了音を鳴らす
+                    double soundX = baseLocation.getX() + cube.gridPosition.x;
+                    double soundY = baseLocation.getY() + 1.0 + cube.gridPosition.y;
+                    double soundZ = baseLocation.getZ() + cube.gridPosition.z + cube.getForwardProgress();
+                    Location soundLoc = new Location(world, soundX, soundY, soundZ);
+                    world.playSound(soundLoc, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 2.0f);
+                }
+                
+                // データは残しておく（壁通過まで保持）
+            }
+        }
         
         // 現在必要なパネル位置のセットを作成
         Set<String> currentPositions = new HashSet<>();
@@ -222,6 +372,22 @@ public class HolePreview {
     }
     
     /**
+     * 穴をなぞった瞬間のエフェクトを表示
+     * @param blockX 穴のX座標
+     * @param blockY 穴のY座標
+     * @param blockZ 穴のZ座標
+     */
+    private void showTraceEffect(int blockX, int blockY, int blockZ) {
+        // パーティクルエフェクト（キラキラ）
+        Location particleLoc = new Location(world, blockX + 0.5, blockY + 0.5, blockZ + 0.5);
+        world.spawnParticle(Particle.HAPPY_VILLAGER, particleLoc, 3, 0.2, 0.2, 0.2, 0);
+        world.spawnParticle(Particle.END_ROD, particleLoc, 2, 0.15, 0.15, 0.15, 0.05);
+        
+        // パリンという音
+        world.playSound(particleLoc, Sound.BLOCK_GLASS_BREAK, 0.3f, 1.8f);
+    }
+    
+    /**
      * プレビューをクリア
      */
     public void clear() {
@@ -229,6 +395,12 @@ public class HolePreview {
             display.remove();
         }
         previewPanelMap.clear();
+        
+        // 壁の追跡データもクリア
+        wallHoles.clear();
+        tracedHoles.clear();
+        completedWalls.clear();
+        lastCanPassThrough = null;
     }
     
     /**
