@@ -20,7 +20,6 @@ public class CubeCamera {
     private static final double CAMERA_DISTANCE_BEHIND = 10.0; // キューブから後ろに離れる距離
     private static final double CAMERA_HEIGHT_OFFSET = 5.0; // 通常時のカメラの高さオフセット
     private static final double LERP_FACTOR = 0.1; // カメラのスムーズ移動速度
-    private static final double CAMERA_RETURN_MARGIN = 1.0; // カメラを戻すまでの余裕距離（ブロック単位）
     
     // カメラ位置の微調整用定数（正の値で上、負の値で下）
     private static final double CAMERA_HEIGHT_ADJUSTMENT = -1.0; // カメラの高さ微調整（ブロック単位）
@@ -41,9 +40,6 @@ public class CubeCamera {
     private double cameraCurrentX; // カメラの現在X位置（相対座標）
     private double cameraCurrentY; // カメラの現在Y位置（相対座標）
     
-    // 穴通過状態
-    private boolean isInHole; // 現在穴の中にいるかどうか
-    private Location lastHoleLocation; // 最後に検出した穴の位置
     
     /**
      * コンストラクタ
@@ -61,9 +57,6 @@ public class CubeCamera {
         this.cameraTargetY = CAMERA_HEIGHT_OFFSET;
         this.cameraCurrentX = 0.0;
         this.cameraCurrentY = CAMERA_HEIGHT_OFFSET;
-        
-        this.isInHole = false;
-        this.lastHoleLocation = null;
     }
     
     /**
@@ -108,6 +101,9 @@ public class CubeCamera {
         // 穴を検出
         Location holeLocation = cube.detectHole();
         
+        // PlayerCubeで穴通過状態を更新
+        cube.updateHoleStatusForCamera(holeLocation, cameraAbsoluteZ);
+        
         updateCameraTarget(holeLocation, cubeGridPos, cameraAbsoluteZ);
         
         // 現在位置を目標位置に向けてスムーズに補間（lerp）
@@ -136,29 +132,16 @@ public class CubeCamera {
     private void updateCameraTarget(Location holeLocation, org.joml.Vector3f cubeGridPos, double cameraAbsoluteZ) {
         if (holeLocation != null) {
             // 穴が見つかった場合
-            if (!isInHole) {
+            if (cube.hasHoleStateChanged() && cube.isInHole()) {
                 // 初めて穴を検出した→目標位置をキューブの中心位置に設定
-                isInHole = true;
                 cameraTargetX = holeLocation.getX() - initialLocation.getX();
                 cameraTargetY = holeLocation.getY() - initialLocation.getY();
             }
-            // 穴を検出し続けている間、lastHoleLocationを更新し続ける（長いトンネル対応）
-            lastHoleLocation = holeLocation.clone();
             // 穴にフォーカス中は目標位置を更新しない（カメラ固定）
         } else {
             // 穴が見つからない場合
-            if (isInHole) {
-                // カメラが穴のZ座標+余裕マージンを超えたかチェック
-                if (lastHoleLocation != null && cameraAbsoluteZ > lastHoleLocation.getZ() + CAMERA_RETURN_MARGIN) {
-                    // カメラが穴を十分通過した→穴モードを解除
-                    isInHole = false;
-                    lastHoleLocation = null;
-                }
-                // まだカメラが穴を通過していない場合は、目標位置を変更しない（カメラ固定継続）
-            }
-            
-            if (!isInHole) {
-                // 通常時：キューブの位置+2マス上を目標にする
+            if (cube.hasHoleStateChanged() && !cube.isInHole()) {
+                // 穴通過が完了した→通常時の目標位置に戻す
                 cameraTargetX = cubeGridPos.x;
                 cameraTargetY = cubeGridPos.y + CAMERA_HEIGHT_OFFSET;
             }
