@@ -136,6 +136,12 @@ public class PlayerCube {
     
     // 回転を適用
     public void applyRotation(Quaternionf newRotation) {
+        // 回転後に衝突するかチェック
+        if (wouldCollideAfterRotation(newRotation)) {
+            // 衝突する場合は回転をキャンセル
+            return;
+        }
+        
         // 現在の回転に新しい回転を適用
         Quaternionf rotation = new Quaternionf()
                 .mul(newRotation)
@@ -178,15 +184,25 @@ public class PlayerCube {
     
     // 衝突検出：衝突しているブロックのStreamを返す
     public Stream<CubeBlock> checkCollision() {
-        return checkCollision(new Vector3f(0, 0, 0));
+        return checkCollision(new Vector3f(0, 0, 0), null);
     }
     
     // 衝突検出（オフセット指定可能）：衝突しているブロックのStreamを返す
     public Stream<CubeBlock> checkCollision(Vector3f positionOffset) {
+        return checkCollision(positionOffset, null);
+    }
+    
+    // 衝突検出（位置オフセットと回転指定可能）：衝突しているブロックのStreamを返す
+    public Stream<CubeBlock> checkCollision(Vector3f positionOffset, Quaternionf rotationOffset) {
+        // 使用する回転を決定（回転オフセットが指定されていない場合は現在の回転を使用）
+        Quaternionf testRotation = rotationOffset != null ? 
+            new Quaternionf().mul(rotationOffset).mul(this.rotation) : 
+            this.rotation;
+            
         return blocks.stream()
             .filter(block -> {
-                // ブロックのワールド座標を計算
-                Location blockWorldLoc = getBlockWorldLocation(block, positionOffset);
+                // ブロックのワールド座標を計算（回転も考慮）
+                Location blockWorldLoc = getBlockWorldLocation(block, positionOffset, testRotation);
                 
                 // その座標のブロックをチェック
                 Block blockAt = world.getBlockAt(blockWorldLoc);
@@ -203,7 +219,13 @@ public class PlayerCube {
     // 移動先で衝突するかチェック（移動前の判定用）
     public boolean wouldCollideAt(Vector3f delta) {
         // checkCollisionを流用して、移動先で衝突するブロックがあるかチェック
-        return checkCollision(delta).findAny().isPresent();
+        return checkCollision(delta, null).findAny().isPresent();
+    }
+    
+    // 回転後に衝突するかチェック（回転前の判定用）
+    public boolean wouldCollideAfterRotation(Quaternionf newRotation) {
+        // checkCollisionを流用して、回転後に衝突するブロックがあるかチェック
+        return checkCollision(new Vector3f(0, 0, 0), newRotation).findAny().isPresent();
     }
     
     // 穴開き壁を検出：キューブの中心位置を返す（穴がない場合はnull）
@@ -260,8 +282,8 @@ public class PlayerCube {
         return null;
     }
     
-    // 各ブロックのワールド座標を計算（位置オフセット指定可能）
-    private Location getBlockWorldLocation(CubeBlock block, Vector3f positionOffset) {
+    // 各ブロックのワールド座標を計算（位置オフセットと回転指定可能）
+    private Location getBlockWorldLocation(CubeBlock block, Vector3f positionOffset, Quaternionf rotation) {
         // ブロックのローカルオフセットに回転を適用
         Vector3f rotatedOffset = new Vector3f(block.offset);
         rotatedOffset.rotate(rotation);
