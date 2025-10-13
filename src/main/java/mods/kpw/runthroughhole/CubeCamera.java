@@ -30,6 +30,7 @@ public class CubeCamera {
     private final World world;
     private final Location initialLocation; // ゲーム開始時の初期位置（不変）
     private final PlayerCube cube; // キューブへの参照
+    private final HoleState holeState; // 穴通過状態管理
     
     private Entity entity; // カメラ用のエンティティ（基底クラス、将来的に変更可能）
     private Player player; // プレイヤー
@@ -51,6 +52,7 @@ public class CubeCamera {
         this.world = world;
         this.initialLocation = initialLocation.clone();
         this.cube = cube;
+        this.holeState = new HoleState();
         
         // 初期カメラ位置（通常時の位置）
         this.cameraTargetX = 0.0;
@@ -101,10 +103,10 @@ public class CubeCamera {
         // 穴を検出
         Location holeLocation = cube.detectHole();
         
-        // PlayerCubeで穴通過状態を更新
-        cube.updateHoleStatusForCamera(holeLocation, cameraAbsoluteZ);
+        // 穴通過状態を更新（カメラのZ座標を使用）
+        holeState.updateHoleStatus(holeLocation, cameraAbsoluteZ);
         
-        updateCameraTarget(holeLocation, cubeGridPos, cameraAbsoluteZ);
+        updateCameraTarget(holeLocation, cubeGridPos);
         
         // 現在位置を目標位置に向けてスムーズに補間（lerp）
         cameraCurrentX += (cameraTargetX - cameraCurrentX) * LERP_FACTOR;
@@ -129,10 +131,10 @@ public class CubeCamera {
     /**
      * カメラの目標位置を更新
      */
-    private void updateCameraTarget(Location holeLocation, org.joml.Vector3f cubeGridPos, double cameraAbsoluteZ) {
+    private void updateCameraTarget(Location holeLocation, org.joml.Vector3f cubeGridPos) {
         if (holeLocation != null) {
             // 穴が見つかった場合
-            if (cube.hasHoleStateChanged() && cube.isInHole()) {
+            if (holeState.hasHoleStateChanged() && holeState.isInHole()) {
                 // 初めて穴を検出した→目標位置をキューブの中心位置に設定
                 cameraTargetX = holeLocation.getX() - initialLocation.getX();
                 cameraTargetY = holeLocation.getY() - initialLocation.getY();
@@ -140,7 +142,7 @@ public class CubeCamera {
             // 穴にフォーカス中は目標位置を更新しない（カメラ固定）
         } else {
             // 穴が見つからない場合
-            if (cube.hasHoleStateChanged() && !cube.isInHole()) {
+            if (holeState.hasHoleStateChanged() && !holeState.isInHole()) {
                 // 穴通過が完了した→通常時の目標位置に戻す
                 cameraTargetX = cubeGridPos.x;
                 cameraTargetY = cubeGridPos.y + CAMERA_HEIGHT_OFFSET;

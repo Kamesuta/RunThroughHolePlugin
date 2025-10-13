@@ -20,6 +20,7 @@ import java.util.Set;
  */
 public class HolePreview {
     private World world;
+    private HoleState holeState; // 穴通過状態管理
     
     // 位置をキーとしてパネルを管理（差分更新用）
     private Map<String, BlockDisplay> previewPanelMap;
@@ -39,6 +40,7 @@ public class HolePreview {
     
     public HolePreview(World world, Main plugin) {
         this.world = world;
+        this.holeState = new HoleState();
         this.previewPanelMap = new HashMap<>();
         this.wallHoles = new HashMap<>();
         this.tracedHoles = new HashMap<>();
@@ -76,8 +78,14 @@ public class HolePreview {
         // 壁のZ座標
         int wallZ = wallLocation.getBlockZ();
         
-        // 通過中かチェック（PlayerCubeの共通ロジックを使用）
-        if (cube.isInHole()) {
+        // 穴を検出
+        Location holeLocation = cube.detectHole();
+        
+        // 穴通過状態を更新（キューブのZ座標を使用）
+        holeState.updateHoleStatus(holeLocation, cubeAbsoluteZ);
+        
+        // 通過中かチェック
+        if (holeState.isInHole()) {
             // 通過中はプレビュー処理を停止（パネルは表示したまま）
             return;
         }
@@ -131,8 +139,8 @@ public class HolePreview {
         // パネルの色を決定（通れるなら緑、通れないなら白）
         Material panelMaterial = canPassThrough ? Material.LIME_STAINED_GLASS : Material.WHITE_STAINED_GLASS;
         
-        // 穴から出たことを検出（PlayerCube.hasHoleStateChanged()を使用）
-        if (cube.hasHoleStateChanged() && !cube.isInHole()) {
+        // 穴から出たことを検出
+        if (holeState.hasHoleStateChanged() && !holeState.isInHole()) {
             // 穴の中にいた → 穴から出た
             // この壁のなぞり状態をリセット（再挑戦可能にする）
             if (tracedHoles.containsKey(wallZ)) {
@@ -222,11 +230,6 @@ public class HolePreview {
                 // すべての穴をなぞった！まだ完了していなければエフェクトを出す
                 if (!completedWalls.contains(wallZ)) {
                     completedWalls.add(wallZ);
-                    
-                    // 完了メッセージを送信
-                    if (player != null) {
-                        player.sendMessage("§a§l★壁の穴をすべてなぞりました！ (" + allHoles.size() + "個)");
-                    }
                     
                     // 完了音を鳴らす
                     double soundX = baseLocation.getX() + cube.gridPosition.x;
