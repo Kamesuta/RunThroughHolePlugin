@@ -15,7 +15,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -54,7 +53,7 @@ public class PlayerGameListener implements Listener {
                 PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
                 if (data == null || data.camera == null || data.isGameOver) return;
                 
-                boolean forward, backward, left, right, jump;
+                boolean forward, backward, left, right, jump, shift;
                 
                 try {
                     PacketContainer packet = event.getPacket();
@@ -63,7 +62,8 @@ public class PlayerGameListener implements Listener {
                     backward = input.read(1);  // S
                     left = input.read(2);      // A
                     right = input.read(3);     // D
-                    jump = input.read(4);
+                    jump = input.read(4);      // Space
+                    shift = input.read(5);     // Shift (スニーク)
                 } catch (Exception e) {
                     Main.logger.warning("[STEER_VEHICLE] パケット解析エラー: " + e.getMessage());
                     e.printStackTrace();
@@ -76,9 +76,16 @@ public class PlayerGameListener implements Listener {
                 boolean finalLeft = left;
                 boolean finalRight = right;
                 boolean finalJump = jump;
+                boolean finalShift = shift;
                 
                 Bukkit.getScheduler().runTask(mainPlugin, () -> {
                     try {
+                        // Shiftキーが押された場合はゲームオーバー
+                        if (finalShift) {
+                            mainPlugin.gameOver(player, "スニークキーが押されたためゲームを中止します");
+                            return;
+                        }
+                        
                         handleWASDInput(player, data, finalLeft, finalRight, finalForward, finalBackward, finalJump);
                     } catch (Exception e) {
                         Main.logger.severe("[STEER_VEHICLE] handleWASDInput実行エラー: " + e.getMessage());
@@ -153,23 +160,6 @@ public class PlayerGameListener implements Listener {
         }
     }
 
-    @EventHandler
-    public void onVehicleExit(VehicleExitEvent event) {
-        // プレイヤーが椅子から降りた時
-        if (event.getExited() instanceof Player) {
-            Player player = (Player) event.getExited();
-            PlayerData data = plugin.getPlayerData(player.getUniqueId());
-            
-            // ゲーム中のプレイヤーが椅子から降りようとした場合
-            if (data != null && data.camera != null && data.camera.isEntity(event.getVehicle())) {
-                // イベントをキャンセルして降りれないようにする
-                event.setCancelled(true);
-                
-                // ゲームオーバー
-                plugin.gameOver(player, "椅子から降りました！");
-            }
-        }
-    }
     
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
