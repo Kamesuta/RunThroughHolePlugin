@@ -114,9 +114,8 @@ public class PlayerCube {
                         // 相対オフセット（中心を(1,1,1)として、-1～1の範囲）
                         Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
                         
-                        // BlockDisplayをスポーン（基準位置の上1.5ブロック）
-                        Location spawnLoc = baseLocation.clone().add(0, 1.5, 0);
-                        BlockDisplay display = world.spawn(spawnLoc, BlockDisplay.class);
+                        // BlockDisplayをスポーン
+                        BlockDisplay display = world.spawn(baseLocation, BlockDisplay.class);
                         display.setBlock(Material.FLETCHING_TABLE.createBlockData());
                         
                         // Interpolationの初期設定
@@ -274,15 +273,9 @@ public class PlayerCube {
     
     // 穴開き壁を検出：キューブの中心位置を返す（穴がない場合はnull）
     public Location detectHole() {
-        // キューブの現在のZ座標で5x5マスをチェック
-        double currentZ = baseLocation.getZ() + gridPosition.z + forwardProgress;
-        int checkZ = (int) Math.floor(currentZ);
-        
-        // キューブの中心位置（XY）を計算
-        double centerX = baseLocation.getX() + gridPosition.x;
-        double centerY = baseLocation.getY() + gridPosition.y;
-        int centerBlockX = (int) Math.floor(centerX);
-        int centerBlockY = (int) Math.floor(centerY);
+        // キューブの現在位置を取得
+        Location currentLocation = getCurrentLocation();
+        Location currentBlockLocation = currentLocation.toBlockLocation();
         
         // 5x5範囲でブロックとAIRをカウント
         int blockCount = 0;
@@ -290,7 +283,7 @@ public class PlayerCube {
         
         for (int dx = -2; dx <= 2; dx++) {
             for (int dy = -2; dy <= 2; dy++) {
-                Location checkLoc = new Location(world, centerBlockX + dx, centerBlockY + dy, checkZ);
+                Location checkLoc = currentBlockLocation.clone().add(dx, dy, 0);
                 Block block = world.getBlockAt(checkLoc);
                 Material material = block.getType();
                 
@@ -305,7 +298,7 @@ public class PlayerCube {
         // ブロックが10個以上あり、AIRが3個以上あれば「穴開き壁」と判定
         if (blockCount >= 10 && airCount >= 3) {
             // キューブの中心位置を返す（プレイヤーの頭の位置がここに来るように調整される）
-            return new Location(world, centerX, centerY, checkZ);
+            return currentLocation;
         }
         
         return null;
@@ -341,6 +334,17 @@ public class PlayerCube {
             .add(0.0f, (float)BLOCKDISPLAY_HEIGHT_OFFSET, forwardProgress);
         
         return Vector.fromJOML(location).toLocation(world).toBlockLocation();
+    }
+    
+    /**
+     * キューブの現在位置を取得（カメラ用）
+     * @return キューブの現在位置
+     */
+    public Location getCurrentLocation() {
+        Vector3f currentPos = baseLocation.toVector().toVector3f()
+            .add(gridPosition)
+            .add(0, 0, forwardProgress);
+        return Vector.fromJOML(currentPos).toLocation(world);
     }
     
     // クリーンアップ

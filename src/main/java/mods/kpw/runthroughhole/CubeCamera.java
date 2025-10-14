@@ -90,15 +90,11 @@ public class CubeCamera {
     public void update() {
         if (entity == null || cube == null) return;
         
-        // キューブの位置を取得
-        var cubeGridPos = cube.gridPosition;
-        float cubeForwardProgress = cube.getForwardProgress();
+        // キューブの現在位置を取得
+        Location cubeLocation = cube.getCurrentLocation();
         
-        // キューブのZ位置から10マス後ろ（固定）
-        double cameraZ = cubeGridPos.z + cubeForwardProgress;
-        
-        // カメラの絶対Z座標を計算
-        double cameraAbsoluteZ = initialLocation.getZ() + cameraZ;
+        // カメラの絶対Z座標を計算（キューブのZ位置から10マス後ろ）
+        double cameraAbsoluteZ = cubeLocation.getZ() - CAMERA_DISTANCE_BEHIND;
         
         // 穴を検出
         Location holeLocation = cube.detectHole();
@@ -106,7 +102,7 @@ public class CubeCamera {
         // 穴通過状態を更新（カメラのZ座標を使用）
         holeState.updateHoleStatus(holeLocation, cameraAbsoluteZ);
         
-        updateCameraTarget(holeLocation, cubeGridPos);
+        updateCameraTarget(holeLocation, cubeLocation);
         
         // 現在位置を目標位置に向けてスムーズに補間（lerp）
         cameraCurrentX += (cameraTargetX - cameraCurrentX) * LERP_FACTOR;
@@ -116,7 +112,7 @@ public class CubeCamera {
         // プレイヤーの視点がcameraCurrentYになるように、エンティティの高さ分を引く
         // さらに微調整用の定数を適用
         Location newCameraLoc = initialLocation.clone();
-        newCameraLoc.add(cameraCurrentX, cameraCurrentY + (CAMERA_HEIGHT_ADJUSTMENT - entityHeightOffset), cameraZ);
+        newCameraLoc.add(cameraCurrentX, cameraCurrentY + (CAMERA_HEIGHT_ADJUSTMENT - entityHeightOffset), cubeLocation.getZ() - initialLocation.getZ() - CAMERA_DISTANCE_BEHIND);
         newCameraLoc.setYaw(0f);
         newCameraLoc.setPitch(0f);
         
@@ -131,7 +127,7 @@ public class CubeCamera {
     /**
      * カメラの目標位置を更新
      */
-    private void updateCameraTarget(Location holeLocation, org.joml.Vector3f cubeGridPos) {
+    private void updateCameraTarget(Location holeLocation, Location cubeLocation) {
         if (holeLocation != null) {
             // 穴が見つかった場合
             if (holeState.hasHoleStateChanged() && holeState.isInHole()) {
@@ -144,8 +140,8 @@ public class CubeCamera {
             // 穴が見つからない場合
             if (holeState.hasHoleStateChanged() && !holeState.isInHole()) {
                 // 穴通過が完了した→通常時の目標位置に戻す
-                cameraTargetX = cubeGridPos.x;
-                cameraTargetY = cubeGridPos.y + CAMERA_HEIGHT_OFFSET;
+                cameraTargetX = cubeLocation.getX() - initialLocation.getX();
+                cameraTargetY = cubeLocation.getY() - initialLocation.getY() + CAMERA_HEIGHT_OFFSET;
             }
         }
     }

@@ -54,8 +54,12 @@ public class HolePreview {
      * @param player プレイヤー（エフェクト用）
      */
     public void update(PlayerCube cube, Location baseLocation, Player player) {
+        // キューブの現在位置を取得
+        Location currentLocation = cube.getCurrentLocation();
+        Location currentBlockLocation = currentLocation.toBlockLocation();
+        
         // 前方の壁を探索
-        double currentZ = baseLocation.getZ() + cube.gridPosition.z + cube.getForwardProgress();
+        double currentZ = currentLocation.getZ();
         
         // キューブの前方1ブロック先から20ブロック先まで探索（キューブが壁に入るまで検出できるように）
         Location wallLocation = findNextWall(cube, baseLocation, currentZ + 1, currentZ + 20);
@@ -66,15 +70,6 @@ public class HolePreview {
             return;
         }
         
-        // キューブの中心位置（XY）を計算
-        double centerX = baseLocation.getX() + cube.gridPosition.x;
-        double centerY = baseLocation.getY() + cube.gridPosition.y;
-        int centerBlockX = (int) Math.floor(centerX);
-        int centerBlockY = (int) Math.floor(centerY);
-        
-        // キューブの現在Z座標（絶対座標）
-        double cubeAbsoluteZ = baseLocation.getZ() + cube.gridPosition.z + cube.getForwardProgress();
-        
         // 壁のZ座標
         int wallZ = wallLocation.getBlockZ();
         
@@ -82,7 +77,7 @@ public class HolePreview {
         Location holeLocation = cube.detectHole();
         
         // 穴通過状態を更新（キューブのZ座標を使用）
-        holeState.updateHoleStatus(holeLocation, cubeAbsoluteZ);
+        holeState.updateHoleStatus(holeLocation, currentLocation.getZ());
         
         // 通過中かチェック
         if (holeState.isInHole()) {
@@ -93,7 +88,7 @@ public class HolePreview {
         // 完了済みの壁を通過したかチェック（カメラと同じロジック）
         Set<Integer> wallsToCleanup = new HashSet<>();
         for (Integer completedWallZ : completedWalls) {
-            if (cubeAbsoluteZ > completedWallZ + WALL_PASS_MARGIN) {
+            if (currentLocation.getZ() > completedWallZ + WALL_PASS_MARGIN) {
                 // 完了した壁をマージン分超えて通過した → データをクリア
                 wallsToCleanup.add(completedWallZ);
             }
@@ -117,8 +112,8 @@ public class HolePreview {
                         offset.rotate(cube.rotation);
                         
                         // 壁上の座標
-                        int blockX = centerBlockX + Math.round(offset.x);
-                        int blockY = centerBlockY + Math.round(offset.y);
+                        int blockX = currentBlockLocation.getBlockX() + Math.round(offset.x);
+                        int blockY = currentBlockLocation.getBlockY() + Math.round(offset.y);
                         
                         // この位置が空気（穴）かチェック
                         Location checkLoc = new Location(world, blockX, blockY, wallZ);
@@ -175,8 +170,8 @@ public class HolePreview {
             // 壁の5x5範囲で穴（AIR）をチェック
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dy = -2; dy <= 2; dy++) {
-                    int blockX = centerBlockX + dx;
-                    int blockY = centerBlockY + dy;
+                    int blockX = currentBlockLocation.getBlockX() + dx;
+                    int blockY = currentBlockLocation.getBlockY() + dy;
                     
                     Location checkLoc = new Location(world, blockX, blockY, wallZ);
                     Material material = world.getBlockAt(checkLoc).getType();
@@ -204,8 +199,8 @@ public class HolePreview {
                         if (cube.blockShape[x][y][z]) {
                             Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
                             offset.rotate(cube.rotation);
-                            int blockX = centerBlockX + Math.round(offset.x);
-                            int blockY = centerBlockY + Math.round(offset.y);
+                            int blockX = currentBlockLocation.getBlockX() + Math.round(offset.x);
+                            int blockY = currentBlockLocation.getBlockY() + Math.round(offset.y);
                             
                             Location checkLoc = new Location(world, blockX, blockY, wallZ);
                             Material material = world.getBlockAt(checkLoc).getType();
@@ -232,11 +227,7 @@ public class HolePreview {
                     completedWalls.add(wallZ);
                     
                     // 完了音を鳴らす
-                    double soundX = baseLocation.getX() + cube.gridPosition.x;
-                    double soundY = baseLocation.getY() + 1.0 + cube.gridPosition.y;
-                    double soundZ = baseLocation.getZ() + cube.gridPosition.z + cube.getForwardProgress();
-                    Location soundLoc = new Location(world, soundX, soundY, soundZ);
-                    world.playSound(soundLoc, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 2.0f);
+                    world.playSound(cube.getCurrentLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 2.0f);
                 }
                 
                 // データは残しておく（壁通過まで保持）
@@ -256,8 +247,8 @@ public class HolePreview {
                         offset.rotate(cube.rotation);
                         
                         // 壁上の座標
-                        int blockX = centerBlockX + Math.round(offset.x);
-                        int blockY = centerBlockY + Math.round(offset.y);
+                        int blockX = currentBlockLocation.getBlockX() + Math.round(offset.x);
+                        int blockY = currentBlockLocation.getBlockY() + Math.round(offset.y);
                         
                         // この位置にプレビューパネルが必要（壁の1マス手前）
                         int previewZ = wallZ - 1;
@@ -305,11 +296,9 @@ public class HolePreview {
      * @return 壁の位置（見つからなければnull）
      */
     private Location findNextWall(PlayerCube cube, Location baseLocation, double startZ, double endZ) {
-        // キューブの中心位置（XY）を計算
-        double centerX = baseLocation.getX() + cube.gridPosition.x;
-        double centerY = baseLocation.getY() + 1.0 + cube.gridPosition.y;
-        int centerBlockX = (int) Math.floor(centerX);
-        int centerBlockY = (int) Math.floor(centerY);
+        // キューブの現在位置を取得
+        Location currentLocation = cube.getCurrentLocation();
+        Location currentBlockLocation = currentLocation.toBlockLocation();
         
         // Z座標を前方に探索
         for (int z = (int) Math.floor(startZ); z <= (int) Math.floor(endZ); z++) {
@@ -319,7 +308,7 @@ public class HolePreview {
             
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dy = -2; dy <= 2; dy++) {
-                    Location checkLoc = new Location(world, centerBlockX + dx, centerBlockY + dy, z);
+                    Location checkLoc = new Location(world, currentBlockLocation.getBlockX() + dx, currentBlockLocation.getBlockY() + dy, z);
                     Material material = world.getBlockAt(checkLoc).getType();
                     
                     if (material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR) {
@@ -332,7 +321,7 @@ public class HolePreview {
             
             // ブロックが10個以上あり、AIRが3個以上あれば「穴開き壁」と判定
             if (blockCount >= 10 && airCount >= 3) {
-                return new Location(world, centerX, centerY, z);
+                return new Location(world, currentBlockLocation.getBlockX(), currentBlockLocation.getBlockY(), z);
             }
         }
         
