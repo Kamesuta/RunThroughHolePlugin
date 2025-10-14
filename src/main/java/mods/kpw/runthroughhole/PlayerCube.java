@@ -121,7 +121,7 @@ public class PlayerCube {
             .forEach(offset -> {
                 // BlockDisplayをスポーン
                 BlockDisplay display = world.spawn(baseLocation, BlockDisplay.class);
-                display.setBlock(Material.HONEY_BLOCK.createBlockData());
+                display.setBlock(Material.GLASS.createBlockData());
                 display.setBrightness(new BlockDisplay.Brightness(15, 15));
                 
                 // Interpolationの初期設定
