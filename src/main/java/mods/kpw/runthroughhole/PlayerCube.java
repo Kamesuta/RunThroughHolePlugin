@@ -24,6 +24,10 @@ public class PlayerCube {
     // キューブの範囲定数
     private static final int CUBE_RANGE = 1; // キューブは-1から+1まで（3x3x3）
     
+    // 壁判定の範囲定数
+    private static final int WALL_RANGE = 2; // 壁判定の範囲（-2から+2まで、5x5範囲）
+    
+
     // 複数のブロックを管理
     private List<CubeBlock> blocks;
     
@@ -389,6 +393,61 @@ public class PlayerCube {
                 blockLocation.getBlockX() + Math.round(offset.x),
                 blockLocation.getBlockY() + Math.round(offset.y),
                 centerLocation.getBlockZ()));
+    }
+
+    /**
+     * マテリアルが空気かどうかを判定
+     * @param material チェックするマテリアル
+     * @return 空気の場合はtrue
+     */
+    public static boolean isAir(Material material) {
+        return material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
+    }
+    
+    /**
+     * 指定範囲の壁ブロックの位置をStreamとして返す
+     * @param center 中心位置
+     * @return 壁ブロックの位置のStream
+     */
+    public Stream<Location> getWallBlocks(Location center) {
+        Location blockLocation = center.toBlockLocation();
+        
+        return IntStream.rangeClosed(-WALL_RANGE, WALL_RANGE)
+            .boxed()
+            .flatMap(dx -> IntStream.rangeClosed(-WALL_RANGE, WALL_RANGE)
+                .mapToObj(dy -> blockLocation.clone().add(dx, dy, 0))
+            );
+    }
+    
+    /**
+     * 前方の壁を探索
+     * @param baseLocation 基準位置
+     * @param startZ 探索開始Z座標
+     * @param endZ 探索終了Z座標
+     * @return 壁の位置（見つからなければnull）
+     */
+    public Location findNextWall(Location baseLocation, double startZ, double endZ) {
+        // キューブの現在位置を取得
+        Location currentLocation = getCurrentLocation();
+        Location currentBlockLocation = currentLocation.toBlockLocation();
+        
+        // Z座標を前方に探索
+        for (int z = (int) Math.floor(startZ); z <= (int) Math.floor(endZ); z++) {
+            Location checkLocation = currentBlockLocation.clone();
+            checkLocation.setZ(z);
+            
+            // 5x5範囲でブロックとAIRをカウント
+            long blockCount = getWallBlocks(checkLocation)
+                .filter(checkLoc -> !isAir(world.getBlockAt(checkLoc).getType()))
+                .count();
+            
+            // ブロックが10個以上あれば「穴開き壁」と判定
+            if (blockCount >= 10) {
+                return checkLocation;
+            }
+        }
+        
+        return null;
     }
 }
 
