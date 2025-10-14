@@ -62,6 +62,7 @@ public class PlayerCube {
     private static final float BOOST_SPEED = FORWARD_SPEED * 3; // 加速時の前進量（3倍速）
     private float forwardProgress = 0f; // 前進の進行度（0～1で1マス分）
     private boolean isBoosting = false; // 加速中かどうか
+    private boolean isContinuousBoosting = false; // 連続加速中かどうか
     
     
     public float getForwardProgress() {
@@ -151,6 +152,26 @@ public class PlayerCube {
     // 加速状態を設定
     public void setBoosting(boolean boosting) {
         this.isBoosting = boosting;
+    }
+    
+    public boolean isContinuousBoosting() {
+        return isContinuousBoosting;
+    }
+    
+    public void startContinuousBoosting() {
+        // 連続加速中の場合のみ開始
+        if (!isContinuousBoosting) {
+            this.isContinuousBoosting = true;
+            this.isBoosting = true;
+        }
+    }
+    
+    public void stopContinuousBoosting() {
+        // 連続加速中の場合のみ停止
+        if (isContinuousBoosting) {
+            this.isContinuousBoosting = false;
+            this.isBoosting = false;
+        }
     }
     
     // 自動前進（毎tick呼び出される）- Z軸のテレポートのみ
@@ -453,6 +474,25 @@ public class PlayerCube {
         }
         
         return null;
+    }
+    
+    /**
+     * 連続加速機能の処理
+     * @param preview プレビュー表示オブジェクト
+     */
+    public void handleContinuousBoosting(HolePreview preview) {
+        // 連続加速中の場合、通り過ぎるまで加速を継続
+        if (isContinuousBoosting) {
+            // 穴から出たかチェック
+            if (preview != null) {
+                Boolean isGreen = preview.isPreviewGreen();
+                // 穴の中にいない場合（通り過ぎた場合）
+                if (isGreen == null || !isGreen) {
+                    // 連続加速を停止
+                    stopContinuousBoosting();
+                }
+            }
+        }
     }
 }
 

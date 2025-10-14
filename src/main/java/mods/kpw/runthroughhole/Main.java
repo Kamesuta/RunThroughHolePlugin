@@ -50,6 +50,7 @@ public class Main extends JavaPlugin {
                 if (data.cube != null && !data.isGameOver) {
                     // キューブを前進
                     data.cube.autoForward();
+                    data.cube.handleContinuousBoosting(data.preview);
                     
                     // 衝突チェック（Streamで衝突ブロックを取得）
                     List<CubeBlock> collidedBlocks = data.cube.checkCollision()

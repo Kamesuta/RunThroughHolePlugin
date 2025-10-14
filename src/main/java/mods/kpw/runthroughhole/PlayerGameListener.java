@@ -144,6 +144,9 @@ public class PlayerGameListener implements Listener {
         PlayerData data = plugin.getPlayerData(playerId);
         if (data == null || data.cube == null) return;
 
+        // 回転操作があった場合、連続加速を中止
+        data.cube.stopContinuousBoosting();
+
         // キューブに回転を適用
         data.cube.applyRotation(newRotation);
         
@@ -201,10 +204,21 @@ public class PlayerGameListener implements Listener {
         // Spaceキーの押下状態を更新して速度を制御
         data.isSpacePressed = jump;
         
-        // 加速状態をキューブに反映
-        if (data.cube != null) {
+        if (jump) {
+            // プレビューパネルが緑でSpaceキーが押された場合、連続加速を開始
+            Boolean isGreen = data.preview.isPreviewGreen();
+            if (isGreen != null && isGreen) {
+                data.cube.startContinuousBoosting();
+            }
+            // ジャンプキーが押された場合、加速開始
             data.cube.setBoosting(jump);
+        } else {
+            // 連続加速モードじゃない場合、ジャンプキーを離したら加速停止
+            if (!data.cube.isContinuousBoosting()) {
+                data.cube.setBoosting(jump);
+            }
         }
+        
         
         int currentTick = plugin.getServer().getCurrentTick();
         int moveCooldownTicks = PlayerCube.MOVE_INTERPOLATION_DURATION * 2; // Interpolation時間の2倍をクールダウンに
@@ -229,6 +243,9 @@ public class PlayerGameListener implements Listener {
         
         // キューブを移動（移動先に衝突がない場合のみ）
         if (gridMove.x != 0 || gridMove.y != 0 || gridMove.z != 0) {
+            // 移動操作があった場合、連続加速を中止
+            data.cube.stopContinuousBoosting();
+            
             // 移動先で衝突するかチェック
             if (!data.cube.wouldCollideAt(gridMove)) {
                 // 衝突しない場合のみ移動

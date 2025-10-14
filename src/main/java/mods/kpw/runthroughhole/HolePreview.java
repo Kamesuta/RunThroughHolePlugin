@@ -290,6 +290,14 @@ public class HolePreview {
     }
     
     /**
+     * プレビューパネルが緑（通れる状態）かどうかを取得
+     * @return 通れる場合はtrue、通れない場合はfalse、まだ判定されていない場合はnull
+     */
+    public Boolean isPreviewGreen() {
+        return lastCanPassThrough;
+    }
+
+    /**
      * クリーンアップ（ゲーム終了時）
      */
     public void cleanup() {
