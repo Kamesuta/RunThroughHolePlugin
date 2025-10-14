@@ -53,6 +53,10 @@ public class PlayerCube {
     // 3x3x3のブロック配列（テトリミノ風）
     public boolean[][][] blockShape = new boolean[CUBE_RANGE * 2 + 1][CUBE_RANGE * 2 + 1][CUBE_RANGE * 2 + 1];
     
+    // Interpolation速度定数
+    public static final int MOVE_INTERPOLATION_DURATION = 1; // 移動時のInterpolation時間（tick）
+    public static final int ROTATION_INTERPOLATION_DURATION = 2; // 回転時のInterpolation時間（tick）
+    
     // 自動前進用
     private static final float FORWARD_SPEED = 0.35f; // 1tickあたりの前進量（ブロック単位）
     private static final float BOOST_SPEED = FORWARD_SPEED * 3; // 加速時の前進量（3倍速）
@@ -197,8 +201,8 @@ public class PlayerCube {
         for (CubeBlock block : blocks) {
             Transformation transformation = block.display.getTransformation();
             
-            // アニメーション設定
-            block.display.setInterpolationDuration(5); // 5tick = 0.25秒
+            // アニメーション設定（移動・回転共通）
+            block.display.setInterpolationDuration(Math.max(MOVE_INTERPOLATION_DURATION, ROTATION_INTERPOLATION_DURATION)); // 移動・回転時のInterpolation時間
             block.display.setInterpolationDelay(0);
             
             // ブロックのローカルオフセットに回転を適用

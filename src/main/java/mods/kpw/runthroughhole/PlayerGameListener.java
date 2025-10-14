@@ -28,7 +28,6 @@ public class PlayerGameListener implements Listener {
 
     // ジェスチャー認識用
     private final float GESTURE_THRESHOLD = 10.0f; // ジェスチャー開始・中央判定の閾値（度）
-    private final long COOLDOWN_MS = 200; // クールダウン時間（ミリ秒）
 
     // 目標視点 (Z+方向: Yaw 0, Pitch 0)
     private static final float TARGET_YAW = 0.0f;
@@ -149,7 +148,7 @@ public class PlayerGameListener implements Listener {
         data.cube.applyRotation(newRotation);
         
         // クールダウンタイムスタンプを更新
-        data.lastCommandTime = System.currentTimeMillis();
+        data.lastCommandTick = plugin.getServer().getCurrentTick();
         
         // プレビューを更新（回転により通過可能な穴が変わる可能性があるため）
         if (data.preview != null && data.initialLocation != null && data.camera != null) {
@@ -169,9 +168,10 @@ public class PlayerGameListener implements Listener {
         if (data == null || data.cube == null || data.isGameOver)
             return; // ゲーム中でないプレイヤーまたはゲームオーバー中のプレイヤーは無視
 
-        // クールダウンチェック
-        long currentTime = System.currentTimeMillis();
-        boolean isInCooldown = (currentTime - data.lastCommandTime) < COOLDOWN_MS;
+        // クールダウンチェック（tickベース）
+        int currentTick = plugin.getServer().getCurrentTick();
+        int rotationCooldownTicks = PlayerCube.ROTATION_INTERPOLATION_DURATION * 2; // Interpolation時間の2倍をクールダウンに
+        boolean isInCooldown = (currentTick - data.lastCommandTick) < rotationCooldownTicks;
         if (isInCooldown)
             return; // クールダウン中は無視
 
@@ -192,6 +192,7 @@ public class PlayerGameListener implements Listener {
 
         if (shouldRotate) {
             applyRotation(playerId, newRotation);
+            data.lastCommandTick = currentTick;
         }
     }
 
@@ -205,8 +206,9 @@ public class PlayerGameListener implements Listener {
             data.cube.setBoosting(jump);
         }
         
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - data.lastMoveTime < COOLDOWN_MS) {
+        int currentTick = plugin.getServer().getCurrentTick();
+        int moveCooldownTicks = PlayerCube.MOVE_INTERPOLATION_DURATION * 2; // Interpolation時間の2倍をクールダウンに
+        if (currentTick - data.lastMoveTick < moveCooldownTicks) {
             return; // クールダウン中
         }
         
@@ -231,7 +233,7 @@ public class PlayerGameListener implements Listener {
             if (!data.cube.wouldCollideAt(gridMove)) {
                 // 衝突しない場合のみ移動
                 data.cube.move(gridMove);
-                data.lastMoveTime = currentTime;
+                data.lastMoveTick = currentTick;
                 
                 // プレビューを更新（移動により壁との位置関係が変わる可能性があるため）
                 if (data.preview != null && data.initialLocation != null) {
@@ -248,9 +250,10 @@ public class PlayerGameListener implements Listener {
         float yawDiff = normalizeAngle(currentYaw - TARGET_YAW);
         float pitchDiff = normalizeAngle(currentPitch - TARGET_PITCH);
 
-        // クールダウンチェック
-        long currentTime = System.currentTimeMillis();
-        boolean isInCooldown = (currentTime - data.lastCommandTime) < COOLDOWN_MS;
+        // クールダウンチェック（tickベース）
+        int currentTick = plugin.getServer().getCurrentTick();
+        int rotationCooldownTicks = PlayerCube.ROTATION_INTERPOLATION_DURATION * 2; // Interpolation時間の2倍をクールダウンに
+        boolean isInCooldown = (currentTick - data.lastCommandTick) < rotationCooldownTicks;
 
         // 左右（Yaw）と上下（Pitch）で独立して判定
         boolean isYawOutside = Math.abs(yawDiff) > GESTURE_THRESHOLD;
@@ -265,6 +268,7 @@ public class PlayerGameListener implements Listener {
                 newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 1, 0);
             }
             applyRotation(playerId, newRotation);
+            data.lastCommandTick = currentTick;
             data.isYawOutside = true;
         } else if (!isYawOutside) {
             data.isYawOutside = false;
@@ -279,6 +283,7 @@ public class PlayerGameListener implements Listener {
                 newRotation.rotateAxis((float) Math.toRadians(90.0f), -1, 0, 0);
             }
             applyRotation(playerId, newRotation);
+            data.lastCommandTick = currentTick;
             data.isPitchOutside = true;
         } else if (!isPitchOutside) {
             data.isPitchOutside = false;
