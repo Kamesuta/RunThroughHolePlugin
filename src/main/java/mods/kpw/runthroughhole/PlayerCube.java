@@ -54,7 +54,7 @@ public class PlayerCube {
     public boolean[][][] blockShape = new boolean[CUBE_RANGE * 2 + 1][CUBE_RANGE * 2 + 1][CUBE_RANGE * 2 + 1];
     
     // 自動前進用
-    private static final float FORWARD_SPEED = 0.15f; // 1tickあたりの前進量（ブロック単位）
+    private static final float FORWARD_SPEED = 0.35f; // 1tickあたりの前進量（ブロック単位）
     private static final float BOOST_SPEED = FORWARD_SPEED * 3; // 加速時の前進量（3倍速）
     private float forwardProgress = 0f; // 前進の進行度（0～1で1マス分）
     private boolean isBoosting = false; // 加速中かどうか
@@ -117,7 +117,7 @@ public class PlayerCube {
             .forEach(offset -> {
                 // BlockDisplayをスポーン
                 BlockDisplay display = world.spawn(baseLocation, BlockDisplay.class);
-                display.setBlock(Material.FLETCHING_TABLE.createBlockData());
+                display.setBlock(Material.HONEY_BLOCK.createBlockData());
                 
                 // Interpolationの初期設定
                 display.setInterpolationDuration(10); // 10tick = 0.5秒でスムーズに移動

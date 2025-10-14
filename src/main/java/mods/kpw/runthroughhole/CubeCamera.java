@@ -19,7 +19,7 @@ public class CubeCamera {
     
     public static final double CAMERA_DISTANCE_BEHIND = 10.0; // キューブから後ろに離れる距離
     private static final double CAMERA_HEIGHT_OFFSET = 3.0; // 通常時のカメラの高さオフセット
-    private static final double LERP_FACTOR = 0.1; // カメラのスムーズ移動速度
+    private static final double LERP_FACTOR = 0.2; // カメラのスムーズ移動速度
     
     // カメラ位置の微調整用定数（正の値で上、負の値で下）
     private static final double CAMERA_HEIGHT_ADJUSTMENT = -1; // カメラの高さ微調整（ブロック単位）

@@ -38,6 +38,9 @@ public class HolePreview {
     
     // 完了した壁のZ座標（カメラと同じように、マージンを超えるまで保持）
     private static final double WALL_PASS_MARGIN = 1.0; // 壁通過判定のマージン
+
+    // 壁を探索する長さ
+    private static final int WALL_SEARCH_LENGTH = 100;
     
     
     public HolePreview(World world, Main plugin) {
@@ -61,8 +64,8 @@ public class HolePreview {
         // 前方の壁を探索
         double currentZ = currentLocation.getZ();
         
-        // キューブの前方1ブロック先から20ブロック先まで探索（キューブが壁に入るまで検出できるように）
-        Location wallLocation = cube.findNextWall(baseLocation, currentZ + 1, currentZ + 20);
+        // キューブの前方1ブロック先から探索（キューブが壁に入るまで検出できるように）
+        Location wallLocation = cube.findNextWall(baseLocation, currentZ + 1, currentZ + WALL_SEARCH_LENGTH);
         
         if (wallLocation == null) {
             // 壁が見つからなかった場合 → すべてのデータをクリア
