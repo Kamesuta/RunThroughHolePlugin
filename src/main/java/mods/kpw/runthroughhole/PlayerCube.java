@@ -5,6 +5,11 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import io.papermc.paper.entity.TeleportFlag;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -22,6 +27,19 @@ public class PlayerCube {
     
     private Location baseLocation; // 基準位置（プレイヤーの固定位置）
     private World world;
+    
+    // 蜂エンティティ（最適化用）
+    private LivingEntity entity;
+    
+    // エンティティの高さオフセット（プレイヤーが乗る位置を考慮）
+    // 将来的にCubeCameraのような高度な位置調整で使用予定
+    private double entityHeightOffset = 0.0;
+    
+    // エンティティ位置の高さ微調整（正の値で上、負の値で下）
+    private static final double ENTITY_HEIGHT_ADJUSTMENT = -0.5; // エンティティの高さ微調整（ブロック単位）
+    
+    // BlockDisplayのTransformation用オフセット（エンティティの高さ分を補正）
+    private static final double BLOCKDISPLAY_HEIGHT_OFFSET = 0.5; // BlockDisplayの高さ補正（ブロック単位）
     
     // 3x3x3のブロック配列（テトリミノ風）
     public boolean[][][] blockShape = new boolean[3][3][3];
@@ -55,8 +73,28 @@ public class PlayerCube {
         blockShape[2][1][1] = true;
         blockShape[2][2][1] = true;
         
+        // 蜂エンティティを初期化
+        initializeEntity();
+        
         // BlockDisplayを生成
         createDisplays();
+    }
+    
+    // 蜂エンティティを初期化
+    private void initializeEntity() {
+        // 蜂エンティティをスポーン
+        Location spawnLocation = baseLocation.clone().add(0, ENTITY_HEIGHT_ADJUSTMENT, 0);
+        entity = (LivingEntity) world.spawnEntity(spawnLocation, EntityType.BEE);
+        
+        // エンティティの設定（最適化案に従って）
+        entity.setInvulnerable(true);
+        entity.setGravity(false);
+        entity.setSilent(true);
+        entity.setAI(false);
+        entity.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
+        
+        // エンティティの高さを取得（プレイヤーが乗る位置のオフセット）
+        this.entityHeightOffset = entity.getHeight();
     }
     
     // 3x3x3配列に基づいてBlockDisplayを生成
@@ -91,6 +129,11 @@ public class PlayerCube {
             }
         }
         
+        // 各BlockDisplayを蜂エンティティにマウント
+        for (CubeBlock block : blocks) {
+            entity.addPassenger(block.display);
+        }
+        
         // 初回配置時に正しい位置に更新
         updateTransformation();
     }
@@ -123,15 +166,14 @@ public class PlayerCube {
         updateZPosition();
     }
     
-    // Z軸位置のみテレポートで更新
+    // Z軸位置のみテレポートで更新（最適化版：蜂エンティティのみテレポート）
     private void updateZPosition() {
         double worldZ = baseLocation.getZ() + gridPosition.z + forwardProgress;
         
-        for (CubeBlock block : blocks) {
-            Location currentLoc = block.display.getLocation();
-            currentLoc.setZ(worldZ);
-            block.display.teleport(currentLoc);
-        }
+        // 蜂エンティティのみをテレポート（BlockDisplayは自動追従）
+        Location entityLoc = entity.getLocation();
+        entityLoc.setZ(worldZ);
+        entity.teleport(entityLoc, TeleportFlag.EntityState.RETAIN_PASSENGERS);
     }
     
     // 回転を適用
@@ -170,7 +212,8 @@ public class PlayerCube {
             centerOffset.rotate(rotation);
             
             // XY方向の相対位置（Z=0、Zはテレポートで管理）
-            Vector3f translation = new Vector3f(gridPosition.x, gridPosition.y, 0);
+            // BlockDisplayの高さオフセットを適用（エンティティの高さ分を補正）
+            Vector3f translation = new Vector3f(gridPosition.x, gridPosition.y + (float)(BLOCKDISPLAY_HEIGHT_OFFSET + entityHeightOffset), 0);
             translation.add(rotatedOffset);
             translation.add(centerOffset);
             
@@ -289,8 +332,9 @@ public class PlayerCube {
         rotatedOffset.rotate(rotation);
         
         // ワールド座標を計算（ブロックの中心座標に合わせるため0.5を加える）
+        // BlockDisplayの高さオフセットを適用（エンティティの高さ分を補正）
         double worldX = baseLocation.getX() - 0.5 + gridPosition.x + positionOffset.x + rotatedOffset.x;
-        double worldY = baseLocation.getY() + 1.0 + gridPosition.y + positionOffset.y + rotatedOffset.y; // 1マス下げる
+        double worldY = baseLocation.getY() + 1.0 + gridPosition.y + BLOCKDISPLAY_HEIGHT_OFFSET + entityHeightOffset + positionOffset.y + rotatedOffset.y; // 1マス下げる + BlockDisplayオフセット
         double worldZ = baseLocation.getZ() + 0.5 + gridPosition.z + positionOffset.z + forwardProgress + rotatedOffset.z;
         
         return new Location(world, 
@@ -307,6 +351,11 @@ public class PlayerCube {
             }
         }
         blocks.clear();
+        
+        // 蜂エンティティも削除
+        if (entity != null) {
+            entity.remove();
+        }
     }
 }
 
