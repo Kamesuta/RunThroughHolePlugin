@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 /**
  * 前方の壁の穴に対してプレビュー表示を行うクラス
@@ -58,8 +59,6 @@ public class HolePreview {
     public void update(PlayerCube cube, Location baseLocation, Player player) {
         // キューブの現在位置を取得
         Location currentLocation = cube.getCurrentLocation();
-        Location currentBlockLocation = currentLocation.toBlockLocation();
-        
         // 前方の壁を探索
         double currentZ = currentLocation.getZ();
         
@@ -142,23 +141,11 @@ public class HolePreview {
         // この壁の穴位置を記録（初回または完了後の再挑戦）
         // 壁の穴は固定位置なので、キューブの回転に関係なく、壁の5x5範囲をチェック
         if (!wallHoles.containsKey(wallZ)) {
-            Set<String> holes = new HashSet<>();
-            
-            // 壁の5x5範囲で穴（AIR）をチェック
-            for (int dx = -2; dx <= 2; dx++) {
-                for (int dy = -2; dy <= 2; dy++) {
-                    int blockX = currentBlockLocation.getBlockX() + dx;
-                    int blockY = currentBlockLocation.getBlockY() + dy;
-                    
-                    Location checkLoc = new Location(world, blockX, blockY, wallZ);
-                    Material material = world.getBlockAt(checkLoc).getType();
-                    
-                    if (material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR) {
-                        String holeKey = blockX + "," + blockY + "," + wallZ;
-                        holes.add(holeKey);
-                    }
-                }
-            }
+            Location wallCenter = wallLocation.clone();
+            Set<String> holes = getWallBlocks(wallCenter, 2)
+                .filter(checkLoc -> isAir(world.getBlockAt(checkLoc).getType()))
+                .map(checkLoc -> checkLoc.getBlockX() + "," + checkLoc.getBlockY() + "," + checkLoc.getBlockZ())
+                .collect(Collectors.toSet());
             
             if (!holes.isEmpty()) {
                 wallHoles.put(wallZ, holes);
@@ -281,6 +268,22 @@ public class HolePreview {
     }
     
     /**
+     * 指定範囲の壁ブロックの位置をStreamとして返す
+     * @param center 中心位置
+     * @param range 範囲（-rangeから+rangeまで）
+     * @return 壁ブロックの位置のStream
+     */
+    private Stream<Location> getWallBlocks(Location center, int range) {
+        Location blockLocation = center.toBlockLocation();
+        
+        return IntStream.rangeClosed(-range, range)
+            .boxed()
+            .flatMap(dx -> IntStream.rangeClosed(-range, range)
+                .mapToObj(dy -> blockLocation.clone().add(dx, dy, 0))
+            );
+    }
+    
+    /**
      * 前方の壁を探索
      * @param cube プレイヤーのキューブ
      * @param baseLocation 基準位置
@@ -295,25 +298,16 @@ public class HolePreview {
         
         // Z座標を前方に探索
         for (int z = (int) Math.floor(startZ); z <= (int) Math.floor(endZ); z++) {
+            Location checkLocation = currentBlockLocation.clone();
+            checkLocation.setZ(z);
+            
             // 5x5範囲でブロックとAIRをカウント
-            int blockCount = 0;
-            int airCount = 0;
+            long blockCount = getWallBlocks(checkLocation, 2)
+                .filter(checkLoc -> !isAir(world.getBlockAt(checkLoc).getType()))
+                .count();
             
-            for (int dx = -2; dx <= 2; dx++) {
-                for (int dy = -2; dy <= 2; dy++) {
-                    Location checkLoc = new Location(world, currentBlockLocation.getBlockX() + dx, currentBlockLocation.getBlockY() + dy, z);
-                    Material material = world.getBlockAt(checkLoc).getType();
-                    
-                    if (material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR) {
-                        airCount++;
-                    } else {
-                        blockCount++;
-                    }
-                }
-            }
-            
-            // ブロックが10個以上あり、AIRが3個以上あれば「穴開き壁」と判定
-            if (blockCount >= 10 && airCount >= 3) {
+            // ブロックが10個以上あれば「穴開き壁」と判定
+            if (blockCount >= 10) {
                 Location wallLocation = currentBlockLocation.clone();
                 wallLocation.setZ(z);
                 return wallLocation;
