@@ -41,6 +41,12 @@ public class HolePreview {
     // 完了した壁のZ座標（カメラと同じように、マージンを超えるまで保持）
     private static final double WALL_PASS_MARGIN = 1.0; // 壁通過判定のマージン
     
+    // キューブの範囲定数
+    private static final int CUBE_RANGE = 1; // キューブは-1から+1まで（3x3x3）
+    
+    // 壁判定の範囲定数
+    private static final int WALL_RANGE = 2; // 壁判定の範囲（-2から+2まで、5x5範囲）
+    
     public HolePreview(World world, Main plugin) {
         this.world = world;
         this.holeState = new HoleState();
@@ -142,7 +148,7 @@ public class HolePreview {
         // 壁の穴は固定位置なので、キューブの回転に関係なく、壁の5x5範囲をチェック
         if (!wallHoles.containsKey(wallZ)) {
             Location wallCenter = wallLocation.clone();
-            Set<String> holes = getWallBlocks(wallCenter, 2)
+            Set<String> holes = getWallBlocks(wallCenter)
                 .filter(checkLoc -> isAir(world.getBlockAt(checkLoc).getType()))
                 .map(checkLoc -> checkLoc.getBlockX() + "," + checkLoc.getBlockY() + "," + checkLoc.getBlockZ())
                 .collect(Collectors.toSet());
@@ -236,14 +242,14 @@ public class HolePreview {
      * @return 有効なブロックのVector3f offsetのStream
      */
     private Stream<Vector3f> getCubeOffsets(PlayerCube cube) {
-        return IntStream.range(0, 3)
+        return IntStream.rangeClosed(-CUBE_RANGE, CUBE_RANGE)
             .boxed()
-            .flatMap(x -> IntStream.range(0, 3)
+            .flatMap(x -> IntStream.rangeClosed(-CUBE_RANGE, CUBE_RANGE)
                 .boxed()
-                .flatMap(y -> IntStream.range(0, 3)
-                    .filter(z -> cube.blockShape[x][y][z])
+                .flatMap(y -> IntStream.rangeClosed(-CUBE_RANGE, CUBE_RANGE)
+                    .filter(z -> cube.blockShape[x + CUBE_RANGE][y + CUBE_RANGE][z + CUBE_RANGE])
                     .mapToObj(z -> {
-                        Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
+                        Vector3f offset = new Vector3f(x, y, z);
                         offset.rotate(cube.rotation);
                         return offset;
                     })
@@ -270,15 +276,14 @@ public class HolePreview {
     /**
      * 指定範囲の壁ブロックの位置をStreamとして返す
      * @param center 中心位置
-     * @param range 範囲（-rangeから+rangeまで）
      * @return 壁ブロックの位置のStream
      */
-    private Stream<Location> getWallBlocks(Location center, int range) {
+    private Stream<Location> getWallBlocks(Location center) {
         Location blockLocation = center.toBlockLocation();
         
-        return IntStream.rangeClosed(-range, range)
+        return IntStream.rangeClosed(-WALL_RANGE, WALL_RANGE)
             .boxed()
-            .flatMap(dx -> IntStream.rangeClosed(-range, range)
+            .flatMap(dx -> IntStream.rangeClosed(-WALL_RANGE, WALL_RANGE)
                 .mapToObj(dy -> blockLocation.clone().add(dx, dy, 0))
             );
     }
@@ -302,7 +307,7 @@ public class HolePreview {
             checkLocation.setZ(z);
             
             // 5x5範囲でブロックとAIRをカウント
-            long blockCount = getWallBlocks(checkLocation, 2)
+            long blockCount = getWallBlocks(checkLocation)
                 .filter(checkLoc -> !isAir(world.getBlockAt(checkLoc).getType()))
                 .count();
             
