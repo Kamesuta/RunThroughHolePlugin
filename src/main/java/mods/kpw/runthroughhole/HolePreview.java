@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * 前方の壁の穴に対してプレビュー表示を行うクラス
@@ -100,36 +102,11 @@ public class HolePreview {
         }
         
         // まず、キューブの全ブロックが壁を通れるかチェック
-        boolean canPassThrough = true;
-        
-        // キューブの形状と回転を使って、各ブロックの位置をチェック
-        for (int x = 0; x < 3; x++) {
-            for (int y = 0; y < 3; y++) {
-                for (int z = 0; z < 3; z++) {
-                    if (cube.blockShape[x][y][z]) {
-                        // このブロックの回転後の位置を計算
-                        Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
-                        offset.rotate(cube.rotation);
-                        
-                        // 壁上の座標
-                        int blockX = currentBlockLocation.getBlockX() + Math.round(offset.x);
-                        int blockY = currentBlockLocation.getBlockY() + Math.round(offset.y);
-                        
-                        // この位置が空気（穴）かチェック
-                        Location checkLoc = new Location(world, blockX, blockY, wallZ);
-                        Material material = world.getBlockAt(checkLoc).getType();
-                        
-                        // 1つでも壁にぶつかる場合は通れない
-                        if (material != Material.AIR && material != Material.CAVE_AIR && material != Material.VOID_AIR) {
-                            canPassThrough = false;
-                            break;
-                        }
-                    }
-                }
-                if (!canPassThrough) break;
-            }
-            if (!canPassThrough) break;
-        }
+        boolean canPassThrough = getCubeWorldPositions(cube, wallLocation)
+            .allMatch(worldPos -> {
+                Material material = world.getBlockAt(worldPos).getType();
+                return isAir(material);
+            });
         
         // パネルの色を決定（通れるなら緑、通れないなら白）
         Material panelMaterial = canPassThrough ? Material.LIME_STAINED_GLASS : Material.WHITE_STAINED_GLASS;
@@ -193,31 +170,17 @@ public class HolePreview {
         // ★重要：緑（通れる）の時だけなぞり判定を行う
         if (canPassThrough && wallHoles.containsKey(wallZ) && !completedWalls.contains(wallZ)) {
             Set<String> currentlyTracedHoles = tracedHoles.get(wallZ);
-            for (int x = 0; x < 3; x++) {
-                for (int y = 0; y < 3; y++) {
-                    for (int z = 0; z < 3; z++) {
-                        if (cube.blockShape[x][y][z]) {
-                            Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
-                            offset.rotate(cube.rotation);
-                            int blockX = currentBlockLocation.getBlockX() + Math.round(offset.x);
-                            int blockY = currentBlockLocation.getBlockY() + Math.round(offset.y);
-                            
-                            Location checkLoc = new Location(world, blockX, blockY, wallZ);
-                            Material material = world.getBlockAt(checkLoc).getType();
-                            
-                            if (material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR) {
-                                String holeKey = blockX + "," + blockY + "," + wallZ;
-                                
-                                // 初めてなぞった場合のみパーティクルを表示
-                                if (!currentlyTracedHoles.contains(holeKey)) {
-                                    currentlyTracedHoles.add(holeKey);
-                                    showTraceEffect(blockX, blockY, wallZ);
-                                }
-                            }
-                        }
+            getCubeWorldPositions(cube, wallLocation)
+                .filter(worldPos -> isAir(world.getBlockAt(worldPos).getType()))
+                .forEach(worldPos -> {
+                    String holeKey = worldPos.getBlockX() + "," + worldPos.getBlockY() + "," + worldPos.getBlockZ();
+                    
+                    // 初めてなぞった場合のみパーティクルを表示
+                    if (!currentlyTracedHoles.contains(holeKey)) {
+                        currentlyTracedHoles.add(holeKey);
+                        showTraceEffect(worldPos);
                     }
-                }
-            }
+                });
             
             // すべての穴をなぞったかチェック
             Set<String> allHoles = wallHoles.get(wallZ);
@@ -238,40 +201,24 @@ public class HolePreview {
         Set<String> currentPositions = new HashSet<>();
         
         // キューブの全ブロック位置にプレビューパネルを表示
-        for (int x = 0; x < 3; x++) {
-            for (int y = 0; y < 3; y++) {
-                for (int z = 0; z < 3; z++) {
-                    if (cube.blockShape[x][y][z]) {
-                        // このブロックの回転後の位置を計算
-                        Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
-                        offset.rotate(cube.rotation);
-                        
-                        // 壁上の座標
-                        int blockX = currentBlockLocation.getBlockX() + Math.round(offset.x);
-                        int blockY = currentBlockLocation.getBlockY() + Math.round(offset.y);
-                        
-                        // この位置にプレビューパネルが必要（壁の1マス手前）
-                        int previewZ = wallZ - 1;
-                        String posKey = blockX + "," + blockY + "," + previewZ;
-                        currentPositions.add(posKey);
-                        
-                        // 既存のパネルがある場合は色を更新、ない場合は作成
-                        if (previewPanelMap.containsKey(posKey)) {
-                            BlockDisplay existingDisplay = previewPanelMap.get(posKey);
-                            // 色が変わった場合のみ更新
-                            if (existingDisplay.getBlock().getMaterial() != panelMaterial) {
-                                existingDisplay.setBlock(panelMaterial.createBlockData());
-                            }
-                        } else {
-                            // 新規作成
-                            Location previewLoc = new Location(world, blockX, blockY, previewZ);
-                            BlockDisplay display = createPreviewPanel(previewLoc, panelMaterial);
-                            previewPanelMap.put(posKey, display);
-                        }
+        getCubeWorldPositions(cube, wallLocation)
+            .forEach(worldPos -> {
+                String posKey = worldPos.getBlockX() + "," + worldPos.getBlockY() + "," + worldPos.getBlockZ();
+                currentPositions.add(posKey);
+                
+                // 既存のパネルがある場合は色を更新、ない場合は作成
+                if (previewPanelMap.containsKey(posKey)) {
+                    BlockDisplay existingDisplay = previewPanelMap.get(posKey);
+                    // 色が変わった場合のみ更新
+                    if (existingDisplay.getBlock().getMaterial() != panelMaterial) {
+                        existingDisplay.setBlock(panelMaterial.createBlockData());
                     }
+                } else {
+                    // 新規作成
+                    BlockDisplay display = createPreviewPanel(worldPos, panelMaterial);
+                    previewPanelMap.put(posKey, display);
                 }
-            }
-        }
+            });
         
         // 不要になったパネルを削除
         Set<String> toRemove = new HashSet<>();
@@ -285,6 +232,52 @@ public class HolePreview {
         for (String posKey : toRemove) {
             previewPanelMap.remove(posKey);
         }
+    }
+    
+    /**
+     * マテリアルが空気かどうかを判定
+     * @param material チェックするマテリアル
+     * @return 空気の場合はtrue
+     */
+    private boolean isAir(Material material) {
+        return material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
+    }
+    
+    /**
+     * キューブの有効なブロックのoffsetをStreamとして返す
+     * @param cube プレイヤーのキューブ
+     * @return 有効なブロックのVector3f offsetのStream
+     */
+    private Stream<Vector3f> getCubeOffsets(PlayerCube cube) {
+        return IntStream.range(0, 3)
+            .boxed()
+            .flatMap(x -> IntStream.range(0, 3)
+                .boxed()
+                .flatMap(y -> IntStream.range(0, 3)
+                    .filter(z -> cube.blockShape[x][y][z])
+                    .mapToObj(z -> {
+                        Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
+                        offset.rotate(cube.rotation);
+                        return offset;
+                    })
+                )
+            );
+    }
+    
+    /**
+     * キューブの有効なブロックの世界座標をStreamとして返す
+     * @param cube プレイヤーのキューブ
+     * @param centerLocation 中心位置 (baseLocationやwallLocation)
+     * @return 有効なブロックの世界座標LocationのStream
+     */
+    private Stream<Location> getCubeWorldPositions(PlayerCube cube, Location centerLocation) {
+        Location blockLocation = centerLocation.toBlockLocation();
+        
+        return getCubeOffsets(cube)
+            .map(offset -> new Location(world, 
+                blockLocation.getBlockX() + Math.round(offset.x),
+                blockLocation.getBlockY() + Math.round(offset.y),
+                centerLocation.getBlockZ()));
     }
     
     /**
@@ -321,7 +314,9 @@ public class HolePreview {
             
             // ブロックが10個以上あり、AIRが3個以上あれば「穴開き壁」と判定
             if (blockCount >= 10 && airCount >= 3) {
-                return new Location(world, currentBlockLocation.getBlockX(), currentBlockLocation.getBlockY(), z);
+                Location wallLocation = currentBlockLocation.clone();
+                wallLocation.setZ(z);
+                return wallLocation;
             }
         }
         
@@ -336,7 +331,7 @@ public class HolePreview {
      */
     private BlockDisplay createPreviewPanel(Location location, Material material) {
         // BlockDisplayをスポーン（ブロックの中心）
-        Location spawnLoc = location.toCenterLocation();
+        Location spawnLoc = location.toCenterLocation().add(0, 0, -1);
         BlockDisplay display = world.spawn(spawnLoc, BlockDisplay.class);
         display.setBlock(material.createBlockData());
         
@@ -365,13 +360,11 @@ public class HolePreview {
     
     /**
      * 穴をなぞった瞬間のエフェクトを表示
-     * @param blockX 穴のX座標
-     * @param blockY 穴のY座標
-     * @param blockZ 穴のZ座標
+     * @param location 穴の位置
      */
-    private void showTraceEffect(int blockX, int blockY, int blockZ) {
+    private void showTraceEffect(Location location) {
         // パーティクルエフェクト（キラキラ）
-        Location particleLoc = new Location(world, blockX, blockY, blockZ).toCenterLocation();
+        Location particleLoc = location.toCenterLocation();
         world.spawnParticle(Particle.HAPPY_VILLAGER, particleLoc, 3, 0.2, 0.2, 0.2, 0);
         world.spawnParticle(Particle.END_ROD, particleLoc, 2, 0.15, 0.15, 0.15, 0.05);
         
