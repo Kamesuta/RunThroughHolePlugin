@@ -41,8 +41,6 @@ public class HolePreview {
     // 完了した壁のZ座標（カメラと同じように、マージンを超えるまで保持）
     private static final double WALL_PASS_MARGIN = 1.0; // 壁通過判定のマージン
     
-    // キューブの範囲定数
-    private static final int CUBE_RANGE = 1; // キューブは-1から+1まで（3x3x3）
     
     // 壁判定の範囲定数
     private static final int WALL_RANGE = 2; // 壁判定の範囲（-2から+2まで、5x5範囲）
@@ -107,7 +105,7 @@ public class HolePreview {
         }
         
         // まず、キューブの全ブロックが壁を通れるかチェック
-        boolean canPassThrough = getCubeWorldPositions(cube, wallLocation)
+        boolean canPassThrough = cube.getCubeWorldPositions(wallLocation)
             .allMatch(worldPos -> {
                 Material material = world.getBlockAt(worldPos).getType();
                 return isAir(material);
@@ -163,7 +161,7 @@ public class HolePreview {
         // ★重要：緑（通れる）の時だけなぞり判定を行う
         if (canPassThrough && wallHoles.containsKey(wallZ) && !completedWalls.contains(wallZ)) {
             Set<String> currentlyTracedHoles = tracedHoles.get(wallZ);
-            getCubeWorldPositions(cube, wallLocation)
+            cube.getCubeWorldPositions(wallLocation)
                 .filter(worldPos -> isAir(world.getBlockAt(worldPos).getType()))
                 .forEach(worldPos -> {
                     String holeKey = worldPos.getBlockX() + "," + worldPos.getBlockY() + "," + worldPos.getBlockZ();
@@ -194,7 +192,7 @@ public class HolePreview {
         Set<String> currentPositions = new HashSet<>();
         
         // キューブの全ブロック位置にプレビューパネルを表示
-        getCubeWorldPositions(cube, wallLocation)
+        cube.getCubeWorldPositions(wallLocation)
             .forEach(worldPos -> {
                 String posKey = worldPos.getBlockX() + "," + worldPos.getBlockY() + "," + worldPos.getBlockZ();
                 currentPositions.add(posKey);
@@ -236,42 +234,6 @@ public class HolePreview {
         return material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
     }
     
-    /**
-     * キューブの有効なブロックのoffsetをStreamとして返す
-     * @param cube プレイヤーのキューブ
-     * @return 有効なブロックのVector3f offsetのStream
-     */
-    private Stream<Vector3f> getCubeOffsets(PlayerCube cube) {
-        return IntStream.rangeClosed(-CUBE_RANGE, CUBE_RANGE)
-            .boxed()
-            .flatMap(x -> IntStream.rangeClosed(-CUBE_RANGE, CUBE_RANGE)
-                .boxed()
-                .flatMap(y -> IntStream.rangeClosed(-CUBE_RANGE, CUBE_RANGE)
-                    .filter(z -> cube.blockShape[x + CUBE_RANGE][y + CUBE_RANGE][z + CUBE_RANGE])
-                    .mapToObj(z -> {
-                        Vector3f offset = new Vector3f(x, y, z);
-                        offset.rotate(cube.rotation);
-                        return offset;
-                    })
-                )
-            );
-    }
-    
-    /**
-     * キューブの有効なブロックの世界座標をStreamとして返す
-     * @param cube プレイヤーのキューブ
-     * @param centerLocation 中心位置 (baseLocationやwallLocation)
-     * @return 有効なブロックの世界座標LocationのStream
-     */
-    private Stream<Location> getCubeWorldPositions(PlayerCube cube, Location centerLocation) {
-        Location blockLocation = centerLocation.toBlockLocation();
-        
-        return getCubeOffsets(cube)
-            .map(offset -> new Location(world, 
-                blockLocation.getBlockX() + Math.round(offset.x),
-                blockLocation.getBlockY() + Math.round(offset.y),
-                centerLocation.getBlockZ()));
-    }
     
     /**
      * 指定範囲の壁ブロックの位置をStreamとして返す

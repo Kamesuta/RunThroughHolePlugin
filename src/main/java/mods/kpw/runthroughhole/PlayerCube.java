@@ -18,8 +18,12 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+import java.util.stream.IntStream;
 
 public class PlayerCube {
+    // キューブの範囲定数
+    private static final int CUBE_RANGE = 1; // キューブは-1から+1まで（3x3x3）
+    
     // 複数のブロックを管理
     private List<CubeBlock> blocks;
     
@@ -43,7 +47,7 @@ public class PlayerCube {
     private static final double BLOCKDISPLAY_HEIGHT_OFFSET = 0; // BlockDisplayの高さ補正（ブロック単位）
     
     // 3x3x3のブロック配列（テトリミノ風）
-    public boolean[][][] blockShape = new boolean[3][3][3];
+    public boolean[][][] blockShape = new boolean[CUBE_RANGE * 2 + 1][CUBE_RANGE * 2 + 1][CUBE_RANGE * 2 + 1];
     
     // 自動前進用
     private static final float FORWARD_SPEED = 0.15f; // 1tickあたりの前進量（ブロック単位）
@@ -62,9 +66,7 @@ public class PlayerCube {
         this.baseLocation = baseLocation;
         this.gridPosition = new Vector3f(0, 0, 0);
         this.blocks = new ArrayList<>();
-        
-        // 初期視点に合わせてBlockDisplayの回転も初期化 (Z+方向: Yaw 0, Pitch 0)
-        this.rotation = new Quaternionf().rotateY((float) Math.toRadians(90.0f));
+        this.rotation = new Quaternionf();
         
         // デフォルトでテトリミノ風のブロックを配置
         blockShape[1][0][0] = true;
@@ -107,27 +109,19 @@ public class PlayerCube {
         blocks.clear();
         
         // blockShape配列をスキャンして、trueのブロックに対してDisplayを作成
-        for (int x = 0; x < 3; x++) {
-            for (int y = 0; y < 3; y++) {
-                for (int z = 0; z < 3; z++) {
-                    if (blockShape[x][y][z]) {
-                        // 相対オフセット（中心を(1,1,1)として、-1～1の範囲）
-                        Vector3f offset = new Vector3f(x - 1, y - 1, z - 1);
-                        
-                        // BlockDisplayをスポーン
-                        BlockDisplay display = world.spawn(baseLocation, BlockDisplay.class);
-                        display.setBlock(Material.FLETCHING_TABLE.createBlockData());
-                        
-                        // Interpolationの初期設定
-                        display.setInterpolationDuration(10); // 10tick = 0.5秒でスムーズに移動
-                        display.setInterpolationDelay(0);
-                        
-                        // Blockオブジェクトを作成してリストに追加
-                        blocks.add(new CubeBlock(display, offset));
-                    }
-                }
-            }
-        }
+        getCubeOffsets()
+            .forEach(offset -> {
+                // BlockDisplayをスポーン
+                BlockDisplay display = world.spawn(baseLocation, BlockDisplay.class);
+                display.setBlock(Material.FLETCHING_TABLE.createBlockData());
+                
+                // Interpolationの初期設定
+                display.setInterpolationDuration(10); // 10tick = 0.5秒でスムーズに移動
+                display.setInterpolationDelay(0);
+                
+                // Blockオブジェクトを作成してリストに追加
+                blocks.add(new CubeBlock(display, offset));
+            });
         
         // 各BlockDisplayを蜂エンティティにマウント
         for (CubeBlock block : blocks) {
@@ -360,6 +354,41 @@ public class PlayerCube {
         if (entity != null) {
             entity.remove();
         }
+    }
+    
+    /**
+     * キューブの有効なブロックのoffsetをStreamとして返す
+     * @return 有効なブロックのVector3f offsetのStream
+     */
+    public Stream<Vector3f> getCubeOffsets() {
+        return IntStream.rangeClosed(-CUBE_RANGE, CUBE_RANGE)
+            .boxed()
+            .flatMap(x -> IntStream.rangeClosed(-CUBE_RANGE, CUBE_RANGE)
+                .boxed()
+                .flatMap(y -> IntStream.rangeClosed(-CUBE_RANGE, CUBE_RANGE)
+                    .filter(z -> blockShape[x + CUBE_RANGE][y + CUBE_RANGE][z + CUBE_RANGE])
+                    .mapToObj(z -> {
+                        Vector3f offset = new Vector3f(x, y, z);
+                        offset.rotate(rotation);
+                        return offset;
+                    })
+                )
+            );
+    }
+    
+    /**
+     * キューブの有効なブロックの世界座標をStreamとして返す
+     * @param centerLocation 中心位置 (baseLocationやwallLocation)
+     * @return 有効なブロックの世界座標LocationのStream
+     */
+    public Stream<Location> getCubeWorldPositions(Location centerLocation) {
+        Location blockLocation = centerLocation.toBlockLocation();
+        
+        return getCubeOffsets()
+            .map(offset -> new Location(world, 
+                blockLocation.getBlockX() + Math.round(offset.x),
+                blockLocation.getBlockY() + Math.round(offset.y),
+                centerLocation.getBlockZ()));
     }
 }
 
