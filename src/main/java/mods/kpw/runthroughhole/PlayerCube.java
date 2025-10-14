@@ -122,6 +122,7 @@ public class PlayerCube {
                 // BlockDisplayをスポーン
                 BlockDisplay display = world.spawn(baseLocation, BlockDisplay.class);
                 display.setBlock(Material.HONEY_BLOCK.createBlockData());
+                display.setBrightness(new BlockDisplay.Brightness(15, 15));
                 
                 // Interpolationの初期設定
                 display.setInterpolationDuration(10); // 10tick = 0.5秒でスムーズに移動

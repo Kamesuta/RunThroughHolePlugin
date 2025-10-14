@@ -234,6 +234,7 @@ public class HolePreview {
         Location spawnLoc = location.toCenterLocation().add(0, 0, -1);
         BlockDisplay display = world.spawn(spawnLoc, BlockDisplay.class);
         display.setBlock(material.createBlockData());
+        display.setBrightness(new BlockDisplay.Brightness(15, 15));
         
         // Transformationを設定（0.8x0.8x0.1の薄型パネル）
         Transformation transformation = display.getTransformation();
