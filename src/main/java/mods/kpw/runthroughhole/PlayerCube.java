@@ -11,6 +11,7 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import io.papermc.paper.entity.TeleportFlag;
 import org.bukkit.util.Transformation;
+import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -36,10 +37,10 @@ public class PlayerCube {
     private double entityHeightOffset = 0.0;
     
     // エンティティ位置の高さ微調整（正の値で上、負の値で下）
-    private static final double ENTITY_HEIGHT_ADJUSTMENT = -0.5; // エンティティの高さ微調整（ブロック単位）
+    private static final double ENTITY_HEIGHT_ADJUSTMENT = 0; // エンティティの高さ微調整（ブロック単位）
     
     // BlockDisplayのTransformation用オフセット（エンティティの高さ分を補正）
-    private static final double BLOCKDISPLAY_HEIGHT_OFFSET = 0.5; // BlockDisplayの高さ補正（ブロック単位）
+    private static final double BLOCKDISPLAY_HEIGHT_OFFSET = 0; // BlockDisplayの高さ補正（ブロック単位）
     
     // 3x3x3のブロック配列（テトリミノ風）
     public boolean[][][] blockShape = new boolean[3][3][3];
@@ -213,7 +214,7 @@ public class PlayerCube {
             
             // XY方向の相対位置（Z=0、Zはテレポートで管理）
             // BlockDisplayの高さオフセットを適用（エンティティの高さ分を補正）
-            Vector3f translation = new Vector3f(gridPosition.x, gridPosition.y + (float)(BLOCKDISPLAY_HEIGHT_OFFSET + entityHeightOffset), 0);
+            Vector3f translation = new Vector3f(gridPosition.x, gridPosition.y + (float)(BLOCKDISPLAY_HEIGHT_OFFSET - entityHeightOffset), 0);
             translation.add(rotatedOffset);
             translation.add(centerOffset);
             
@@ -279,7 +280,7 @@ public class PlayerCube {
         
         // キューブの中心位置（XY）を計算
         double centerX = baseLocation.getX() + gridPosition.x;
-        double centerY = baseLocation.getY() + 1.0 + gridPosition.y;
+        double centerY = baseLocation.getY() + gridPosition.y;
         int centerBlockX = (int) Math.floor(centerX);
         int centerBlockY = (int) Math.floor(centerY);
         
@@ -333,14 +334,13 @@ public class PlayerCube {
         
         // ワールド座標を計算（ブロックの中心座標に合わせるため0.5を加える）
         // BlockDisplayの高さオフセットを適用（エンティティの高さ分を補正）
-        double worldX = baseLocation.getX() - 0.5 + gridPosition.x + positionOffset.x + rotatedOffset.x;
-        double worldY = baseLocation.getY() + 1.0 + gridPosition.y + BLOCKDISPLAY_HEIGHT_OFFSET + entityHeightOffset + positionOffset.y + rotatedOffset.y; // 1マス下げる + BlockDisplayオフセット
-        double worldZ = baseLocation.getZ() + 0.5 + gridPosition.z + positionOffset.z + forwardProgress + rotatedOffset.z;
+        Vector3f location = new Vector3f(baseLocation.toVector().toVector3f())
+            .add(gridPosition)
+            .add(positionOffset)
+            .add(rotatedOffset)
+            .add(0.0f, (float)BLOCKDISPLAY_HEIGHT_OFFSET, forwardProgress);
         
-        return new Location(world, 
-            Math.floor(worldX), 
-            Math.floor(worldY), 
-            Math.floor(worldZ));
+        return Vector.fromJOML(location).toLocation(world).toBlockLocation();
     }
     
     // クリーンアップ

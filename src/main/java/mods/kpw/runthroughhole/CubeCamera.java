@@ -17,12 +17,12 @@ import io.papermc.paper.entity.TeleportFlag;
  */
 public class CubeCamera {
     
-    private static final double CAMERA_DISTANCE_BEHIND = 10.0; // キューブから後ろに離れる距離
-    private static final double CAMERA_HEIGHT_OFFSET = 5.0; // 通常時のカメラの高さオフセット
+    public static final double CAMERA_DISTANCE_BEHIND = 10.0; // キューブから後ろに離れる距離
+    private static final double CAMERA_HEIGHT_OFFSET = 3.0; // 通常時のカメラの高さオフセット
     private static final double LERP_FACTOR = 0.1; // カメラのスムーズ移動速度
     
     // カメラ位置の微調整用定数（正の値で上、負の値で下）
-    private static final double CAMERA_HEIGHT_ADJUSTMENT = -1.0; // カメラの高さ微調整（ブロック単位）
+    private static final double CAMERA_HEIGHT_ADJUSTMENT = -1; // カメラの高さ微調整（ブロック単位）
     
     // カメラエンティティの高さオフセット（プレイヤーが乗る位置を考慮）
     private double entityHeightOffset = 0.0;
@@ -50,7 +50,7 @@ public class CubeCamera {
      */
     public CubeCamera(World world, Location initialLocation, PlayerCube cube) {
         this.world = world;
-        this.initialLocation = initialLocation.clone();
+        this.initialLocation = initialLocation.clone().add(0, 0, -CubeCamera.CAMERA_DISTANCE_BEHIND);
         this.cube = cube;
         this.holeState = new HoleState();
         
@@ -95,7 +95,7 @@ public class CubeCamera {
         float cubeForwardProgress = cube.getForwardProgress();
         
         // キューブのZ位置から10マス後ろ（固定）
-        double cameraZ = cubeGridPos.z + cubeForwardProgress - CAMERA_DISTANCE_BEHIND;
+        double cameraZ = cubeGridPos.z + cubeForwardProgress;
         
         // カメラの絶対Z座標を計算
         double cameraAbsoluteZ = initialLocation.getZ() + cameraZ;
@@ -116,7 +116,7 @@ public class CubeCamera {
         // プレイヤーの視点がcameraCurrentYになるように、エンティティの高さ分を引く
         // さらに微調整用の定数を適用
         Location newCameraLoc = initialLocation.clone();
-        newCameraLoc.add(cameraCurrentX, cameraCurrentY - entityHeightOffset + CAMERA_HEIGHT_ADJUSTMENT, cameraZ);
+        newCameraLoc.add(cameraCurrentX, cameraCurrentY + (CAMERA_HEIGHT_ADJUSTMENT - entityHeightOffset), cameraZ);
         newCameraLoc.setYaw(0f);
         newCameraLoc.setPitch(0f);
         

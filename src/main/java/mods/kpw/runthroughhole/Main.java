@@ -187,28 +187,6 @@ public class Main extends JavaPlugin {
     public void gameOver(Player player, String reason) {
         gameOver(player, reason, null);
     }
-    
-    /**
-     * 位置をブロックグリッドにスナップ
-     * @param location スナップする位置
-     * @return スナップされた位置（新しいLocationオブジェクト）
-     */
-    private static Location snapToGrid(Location location) {
-        Location snapped = location.clone();
-        
-        // XとZはブロックの中心（0.5）にスナップ
-        snapped.setX(Math.floor(location.getX()) + 0.5);
-        snapped.setZ(Math.floor(location.getZ()) + 0.5);
-        
-        // Yはブロックの下面にスナップ
-        snapped.setY(Math.floor(location.getY()));
-        
-        // 向きを正面（Z+方向）に固定
-        snapped.setYaw(0f);
-        snapped.setPitch(0f);
-        
-        return snapped;
-    }
 
     // ゲーム開始処理
     public void startGame(Player player) {
@@ -219,11 +197,15 @@ public class Main extends JavaPlugin {
         }
 
         // プレイヤーの位置をブロックグリッドにスナップ
-        Location loc = snapToGrid(player.getLocation());
+        Location startLocation = player.getLocation().toCenterLocation();
+        startLocation.setYaw(0f);
+        startLocation.setPitch(0f);
+        // カメラの位置に合わせてオフセットを追加
+        startLocation.add(0, 0, CubeCamera.CAMERA_DISTANCE_BEHIND);
 
         // PlayerDataを作成
         PlayerData data = getOrCreatePlayerData(playerId);
-        data.initialLocation = loc.clone();
+        data.initialLocation = startLocation.clone();
         
         // 現在のゲームモードを保存
         data.originalGameMode = player.getGameMode();
@@ -232,10 +214,10 @@ public class Main extends JavaPlugin {
         player.setGameMode(GameMode.ADVENTURE);
 
         // キャラのキューブを作成
-        data.cube = new PlayerCube(player.getWorld(), loc.clone());
+        data.cube = new PlayerCube(player.getWorld(), startLocation.clone());
         
         // カメラを作成してセットアップ
-        data.camera = new CubeCamera(player.getWorld(), loc.clone(), data.cube);
+        data.camera = new CubeCamera(player.getWorld(), startLocation.clone(), data.cube);
         data.camera.setup(player);
         
         // プレビュー表示を作成

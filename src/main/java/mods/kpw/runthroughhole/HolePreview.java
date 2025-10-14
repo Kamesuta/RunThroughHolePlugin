@@ -68,7 +68,7 @@ public class HolePreview {
         
         // キューブの中心位置（XY）を計算
         double centerX = baseLocation.getX() + cube.gridPosition.x;
-        double centerY = baseLocation.getY() + 1.0 + cube.gridPosition.y;
+        double centerY = baseLocation.getY() + cube.gridPosition.y;
         int centerBlockX = (int) Math.floor(centerX);
         int centerBlockY = (int) Math.floor(centerY);
         
@@ -347,7 +347,7 @@ public class HolePreview {
      */
     private BlockDisplay createPreviewPanel(Location location, Material material) {
         // BlockDisplayをスポーン（ブロックの中心）
-        Location spawnLoc = location.clone().add(0.5, 0.5, 0.5);
+        Location spawnLoc = location.toCenterLocation();
         BlockDisplay display = world.spawn(spawnLoc, BlockDisplay.class);
         display.setBlock(material.createBlockData());
         
@@ -382,7 +382,7 @@ public class HolePreview {
      */
     private void showTraceEffect(int blockX, int blockY, int blockZ) {
         // パーティクルエフェクト（キラキラ）
-        Location particleLoc = new Location(world, blockX + 0.5, blockY + 0.5, blockZ + 0.5);
+        Location particleLoc = new Location(world, blockX, blockY, blockZ).toCenterLocation();
         world.spawnParticle(Particle.HAPPY_VILLAGER, particleLoc, 3, 0.2, 0.2, 0.2, 0);
         world.spawnParticle(Particle.END_ROD, particleLoc, 2, 0.15, 0.15, 0.15, 0.05);
         
