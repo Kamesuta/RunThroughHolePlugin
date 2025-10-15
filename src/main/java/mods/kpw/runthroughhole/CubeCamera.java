@@ -1,6 +1,7 @@
 package mods.kpw.runthroughhole;
 
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -22,13 +23,14 @@ public class CubeCamera {
     private static final double CAMERA_HEIGHT_OFFSET = 3.0; // 通常時のカメラの高さオフセット
     private static final double CUBE_TARGET_LERP_FACTOR = 0.02; // カメラのスムーズ移動速度
     private static final double SWITCH_TARGET_LERP_FACTOR = 0.2; // カメラターゲットのlerp速度（holeとcubeTargetの切り替え用）
+    private static final double CEILING_COLLISION_LERP_FACTOR = 0.3; // 天井衝突時の高速下降lerp速度
     
     // カメラ位置の微調整用定数（正の値で上、負の値で下）
     private static final double CAMERA_HEIGHT_ADJUSTMENT = -1; // カメラの高さ微調整（ブロック単位）
     
     // カメラエンティティの高さオフセット（プレイヤーが乗る位置を考慮）
     private double entityHeightOffset = 0.0;
-    
+
     private final World world;
     private final Location initialLocation; // ゲーム開始時の初期位置（不変）
     private final PlayerCube cube; // キューブへの参照
@@ -37,6 +39,8 @@ public class CubeCamera {
     private Entity entity; // カメラ用のエンティティ（基底クラス、将来的に変更可能）
     private Player player; // プレイヤー
     
+    // キューブの現在位置
+    private Location cubeLocation;    
     // カメラの状態
     private Vector2f cameraTarget; // カメラの現在位置（相対座標）
     // キューブフォーカス用
@@ -91,24 +95,26 @@ public class CubeCamera {
         if (entity == null || cube == null) return;
         
         // キューブの現在位置を取得
-        Location cubeLocation = cube.getCurrentLocation();
-        
-        // カメラの絶対Z座標を計算（キューブのZ位置から10マス後ろ）
+        cubeLocation = cube.getCurrentLocation();
+        // カメラの絶対Z座標を計算
         double cameraAbsoluteZ = cubeLocation.getZ() - CAMERA_DISTANCE_BEHIND;
         
         // 穴を検出
         Location holeLocation = cube.detectHole();
-        
         // 穴通過状態を更新（カメラのZ座標を使用）
         holeState.updateHoleStatus(holeLocation, cameraAbsoluteZ);
         
-        updateCameraTarget(cubeLocation);
+        // カメラの目標位置を更新
+        updateCameraTarget();
         
         // 新しいカメラ位置を計算
         // プレイヤーの視点がcameraCurrent.yになるように、エンティティの高さ分を引く
         // さらに微調整用の定数を適用
         Location newCameraLoc = initialLocation.clone();
-        newCameraLoc.add(cameraTarget.x, cameraTarget.y + (CAMERA_HEIGHT_ADJUSTMENT - entityHeightOffset), cubeLocation.getZ() - initialLocation.getZ() - CAMERA_DISTANCE_BEHIND);
+        newCameraLoc.add(
+            cameraTarget.x,
+            cameraTarget.y + (CAMERA_HEIGHT_ADJUSTMENT - entityHeightOffset),
+            cameraAbsoluteZ - initialLocation.getZ());
         newCameraLoc.setYaw(0f);
         newCameraLoc.setPitch(0f);
         
@@ -123,19 +129,32 @@ public class CubeCamera {
     /**
      * カメラの目標位置を更新
      */
-    private void updateCameraTarget(Location cubeLocation) {
+    private void updateCameraTarget() {
         // 穴の位置を取得
         Location holeLocation = holeState.getLastHoleLocation();
         Vector2f holeTarget = holeLocation != null
             ? new Vector2f((float)(holeLocation.getX() - initialLocation.getX()), (float)(holeLocation.getY() - initialLocation.getY()))
             : new Vector2f();
 
-        // キューブの位置を取得
+        // キューブの位置を取得（天井制限を考慮）
+        double desiredCameraY = cubeLocation.getY() + CAMERA_HEIGHT_OFFSET;
+        double ceilingY = getCeilingY();
+        
+        // 天井衝突状態を更新
+        boolean isCeilingCollision = (ceilingY < desiredCameraY);
+        // 天井衝突時の高速下降処理
+        double lerpFactor = CUBE_TARGET_LERP_FACTOR;
+        if (isCeilingCollision) {
+            // 天井衝突時は高速下降
+            lerpFactor = CEILING_COLLISION_LERP_FACTOR;
+        }
+        
+        // キューブの位置を更新
         Vector2f cubePosition = new Vector2f(
             (float)(cubeLocation.getX() - initialLocation.getX()),
-            (float)(cubeLocation.getY() - initialLocation.getY() + CAMERA_HEIGHT_OFFSET)
+            (float)(Math.min(ceilingY, desiredCameraY) - initialLocation.getY())
         );
-        cubeTarget.lerp(cubePosition, (float)CUBE_TARGET_LERP_FACTOR);
+        cubeTarget.lerp(cubePosition, (float)lerpFactor);
         
         // カメラターゲットのlerpファクターを更新
         float targetLerpFactor = holeState.isInHole() ? 1.0f : 0.0f;
@@ -144,6 +163,30 @@ public class CubeCamera {
         // cubeフォーカスに完全に切り替え
         // Vector2fを使用して現在位置を目標位置に向けてスムーズに補間（lerp）
         cameraTarget = cameraTarget.set(cubeTarget).lerp(holeTarget, switchTargetLerpFactor);
+    }
+    
+    /**
+     * 天井を検出してカメラの高さを制限する
+     * @return 天井のY座標
+     */
+    private double getCeilingY() {
+        // 現在のY座標から上に向かって天井を検索
+        int startY = cubeLocation.getBlockY();
+        // 最大検索範囲を設定（カメラの高さオフセット + 余裕分）
+        int endY = startY + (int)Math.ceil(CAMERA_HEIGHT_OFFSET);
+        
+        for (int y = startY; y <= endY; y++) {
+            Location checkLocation = new Location(world, cubeLocation.getX(), y, cubeLocation.getZ());
+            
+            // その位置にブロックがあるかチェック
+            if (!world.getBlockAt(checkLocation).isEmpty()) {
+                // 天井を発見：カメラがその位置より下になるように制限
+                return checkLocation.getY() - 1.0;
+            }
+        }
+        
+        // 天井が見つからない場合は最大高さを返す
+        return cubeLocation.getY() + CAMERA_HEIGHT_OFFSET;
     }
     
     /**
