@@ -28,10 +28,9 @@ public class PlayerGameListener implements Listener {
 
     // ジェスチャー認識用
     private final float GESTURE_THRESHOLD = 10.0f; // ジェスチャー開始・中央判定の閾値（度）
-
-    // 目標視点 (Z+方向: Yaw 0, Pitch 0)
-    private static final float TARGET_YAW = 0.0f;
-    private static final float TARGET_PITCH = 0.0f;
+    
+    // 視線追従設定
+    private final float LERP_SPEED = 0.02f; // Lerpの速度（0.0-1.0、小さいほどゆっくり）
 
     public PlayerGameListener(Main plugin) {
         this.plugin = plugin;
@@ -262,15 +261,22 @@ public class PlayerGameListener implements Listener {
     }
     
     private void handleViewRotation(Player player, UUID playerId, PlayerData data, float currentYaw, float currentPitch) {
-
-        // 中央位置からのずれを計算
-        float yawDiff = normalizeAngle(currentYaw - TARGET_YAW);
-        float pitchDiff = normalizeAngle(currentPitch - TARGET_PITCH);
+        // 現在のtickを取得
+        int currentTick = plugin.getServer().getCurrentTick();
 
         // クールダウンチェック（tickベース）
-        int currentTick = plugin.getServer().getCurrentTick();
         int rotationCooldownTicks = PlayerCube.ROTATION_INTERPOLATION_DURATION * 2; // Interpolation時間の2倍をクールダウンに
         boolean isInCooldown = (currentTick - data.lastCommandTick) < rotationCooldownTicks;
+
+        if (!isInCooldown) {
+            // 現在の目標視点をプレイヤーの視線にゆっくりとLerp
+            data.currentTargetYaw = lerpAngle(data.currentTargetYaw, currentYaw, LERP_SPEED);
+            data.currentTargetPitch = lerpAngle(data.currentTargetPitch, currentPitch, LERP_SPEED);
+        }
+
+        // 現在の目標視点からのずれを計算
+        float yawDiff = normalizeAngle(currentYaw - data.currentTargetYaw);
+        float pitchDiff = normalizeAngle(currentPitch - data.currentTargetPitch);
 
         // 左右（Yaw）と上下（Pitch）で独立して判定
         boolean isYawOutside = Math.abs(yawDiff) > GESTURE_THRESHOLD;
@@ -307,6 +313,11 @@ public class PlayerGameListener implements Listener {
         }
 
         // ガイド表示：罫線を使った9パターン
+        updateGuideDisplay(player, data, yawDiff, pitchDiff, isYawOutside, isPitchOutside);
+    }
+
+    // ガイド表示の更新
+    private void updateGuideDisplay(Player player, PlayerData data, float yawDiff, float pitchDiff, boolean isYawOutside, boolean isPitchOutside) {
         String currentGuide = null;
         
         if (!isYawOutside && !isPitchOutside) {
@@ -355,6 +366,12 @@ public class PlayerGameListener implements Listener {
             player.showTitle(title);
             data.currentGuide = null;
         }
+    }
+
+    // 角度のLerp（線形補間）
+    private float lerpAngle(float current, float target, float speed) {
+        float diff = normalizeAngle(target - current);
+        return current + diff * speed;
     }
     
     private float normalizeAngle(float angle) {

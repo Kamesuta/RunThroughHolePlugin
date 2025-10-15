@@ -20,6 +20,10 @@ public class PlayerData {
     
     // 加速機能
     public boolean isSpacePressed; // Spaceキーが押されているかどうか
+    
+    // 視線追従機能
+    public float currentTargetYaw; // 現在追従している目標Yaw
+    public float currentTargetPitch; // 現在追従している目標Pitch
 
     public PlayerData() {
         this.currentGuide = null;
@@ -29,6 +33,10 @@ public class PlayerData {
         this.lastMoveTick = 0;
         this.isGameOver = false;
         this.isSpacePressed = false;
+        
+        // 視線追従の初期値（デフォルトは前方を向く）
+        this.currentTargetYaw = 0.0f;
+        this.currentTargetPitch = 0.0f;
     }
 }
 
