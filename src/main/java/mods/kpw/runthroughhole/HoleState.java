@@ -61,7 +61,6 @@ public class HoleState {
                 if (lastHoleLocation != null && targetZ > lastHoleLocation.getZ() + HOLE_PASS_MARGIN) {
                     // ターゲットが穴を十分通過した→穴モードを解除
                     isInHole = false;
-                    lastHoleLocation = null;
                 }
             }
         }

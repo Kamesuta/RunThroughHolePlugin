@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import io.papermc.paper.entity.TeleportFlag;
+import org.joml.Vector2f;
 
 /**
  * プレイヤーのカメラを管理するクラス
@@ -19,7 +20,8 @@ public class CubeCamera {
     
     public static final double CAMERA_DISTANCE_BEHIND = 10.0; // キューブから後ろに離れる距離
     private static final double CAMERA_HEIGHT_OFFSET = 3.0; // 通常時のカメラの高さオフセット
-    private static final double LERP_FACTOR = 0.2; // カメラのスムーズ移動速度
+    private static final double CUBE_TARGET_LERP_FACTOR = 0.02; // カメラのスムーズ移動速度
+    private static final double SWITCH_TARGET_LERP_FACTOR = 0.2; // カメラターゲットのlerp速度（holeとcubeTargetの切り替え用）
     
     // カメラ位置の微調整用定数（正の値で上、負の値で下）
     private static final double CAMERA_HEIGHT_ADJUSTMENT = -1; // カメラの高さ微調整（ブロック単位）
@@ -36,11 +38,11 @@ public class CubeCamera {
     private Player player; // プレイヤー
     
     // カメラの状態
-    private double cameraTargetX; // カメラの目標X位置（相対座標）
-    private double cameraTargetY; // カメラの目標Y位置（相対座標）
-    private double cameraCurrentX; // カメラの現在X位置（相対座標）
-    private double cameraCurrentY; // カメラの現在Y位置（相対座標）
-    
+    private Vector2f cameraTarget; // カメラの現在位置（相対座標）
+    // キューブフォーカス用
+    private Vector2f cubeTarget; // カメラの目標位置（相対座標）
+    // キューブ 穴 切り替え用
+    private float switchTargetLerpFactor; // カメラターゲットのlerpファクター（0.0-1.0）
     
     /**
      * コンストラクタ
@@ -55,10 +57,8 @@ public class CubeCamera {
         this.holeState = new HoleState();
         
         // 初期カメラ位置（通常時の位置）
-        this.cameraTargetX = 0.0;
-        this.cameraTargetY = CAMERA_HEIGHT_OFFSET;
-        this.cameraCurrentX = 0.0;
-        this.cameraCurrentY = CAMERA_HEIGHT_OFFSET;
+        this.cubeTarget = new Vector2f(0.0f, (float)CAMERA_HEIGHT_OFFSET);
+        this.cameraTarget = new Vector2f(0.0f, (float)CAMERA_HEIGHT_OFFSET);
     }
     
     /**
@@ -102,17 +102,13 @@ public class CubeCamera {
         // 穴通過状態を更新（カメラのZ座標を使用）
         holeState.updateHoleStatus(holeLocation, cameraAbsoluteZ);
         
-        updateCameraTarget(holeLocation, cubeLocation);
-        
-        // 現在位置を目標位置に向けてスムーズに補間（lerp）
-        cameraCurrentX += (cameraTargetX - cameraCurrentX) * LERP_FACTOR;
-        cameraCurrentY += (cameraTargetY - cameraCurrentY) * LERP_FACTOR;
+        updateCameraTarget(cubeLocation);
         
         // 新しいカメラ位置を計算
-        // プレイヤーの視点がcameraCurrentYになるように、エンティティの高さ分を引く
+        // プレイヤーの視点がcameraCurrent.yになるように、エンティティの高さ分を引く
         // さらに微調整用の定数を適用
         Location newCameraLoc = initialLocation.clone();
-        newCameraLoc.add(cameraCurrentX, cameraCurrentY + (CAMERA_HEIGHT_ADJUSTMENT - entityHeightOffset), cubeLocation.getZ() - initialLocation.getZ() - CAMERA_DISTANCE_BEHIND);
+        newCameraLoc.add(cameraTarget.x, cameraTarget.y + (CAMERA_HEIGHT_ADJUSTMENT - entityHeightOffset), cubeLocation.getZ() - initialLocation.getZ() - CAMERA_DISTANCE_BEHIND);
         newCameraLoc.setYaw(0f);
         newCameraLoc.setPitch(0f);
         
@@ -127,23 +123,27 @@ public class CubeCamera {
     /**
      * カメラの目標位置を更新
      */
-    private void updateCameraTarget(Location holeLocation, Location cubeLocation) {
-        if (holeLocation != null) {
-            // 穴が見つかった場合
-            if (holeState.hasHoleStateChanged() && holeState.isInHole()) {
-                // 初めて穴を検出した→目標位置をキューブの中心位置に設定
-                cameraTargetX = holeLocation.getX() - initialLocation.getX();
-                cameraTargetY = holeLocation.getY() - initialLocation.getY();
-            }
-            // 穴にフォーカス中は目標位置を更新しない（カメラ固定）
-        } else {
-            // 穴が見つからない場合
-            if (holeState.hasHoleStateChanged() && !holeState.isInHole()) {
-                // 穴通過が完了した→通常時の目標位置に戻す
-                cameraTargetX = cubeLocation.getX() - initialLocation.getX();
-                cameraTargetY = cubeLocation.getY() - initialLocation.getY() + CAMERA_HEIGHT_OFFSET;
-            }
-        }
+    private void updateCameraTarget(Location cubeLocation) {
+        // 穴の位置を取得
+        Location holeLocation = holeState.getLastHoleLocation();
+        Vector2f holeTarget = holeLocation != null
+            ? new Vector2f((float)(holeLocation.getX() - initialLocation.getX()), (float)(holeLocation.getY() - initialLocation.getY()))
+            : new Vector2f();
+
+        // キューブの位置を取得
+        Vector2f cubePosition = new Vector2f(
+            (float)(cubeLocation.getX() - initialLocation.getX()),
+            (float)(cubeLocation.getY() - initialLocation.getY() + CAMERA_HEIGHT_OFFSET)
+        );
+        cubeTarget.lerp(cubePosition, (float)CUBE_TARGET_LERP_FACTOR);
+        
+        // カメラターゲットのlerpファクターを更新
+        float targetLerpFactor = holeState.isInHole() ? 1.0f : 0.0f;
+        switchTargetLerpFactor += (targetLerpFactor - switchTargetLerpFactor) * SWITCH_TARGET_LERP_FACTOR;
+        
+        // cubeフォーカスに完全に切り替え
+        // Vector2fを使用して現在位置を目標位置に向けてスムーズに補間（lerp）
+        cameraTarget = cameraTarget.set(cubeTarget).lerp(holeTarget, switchTargetLerpFactor);
     }
     
     /**
