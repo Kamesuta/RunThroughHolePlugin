@@ -103,7 +103,7 @@ public class HolePreview {
         }
         
         // まず、キューブの全ブロックが壁を通れるかチェック
-        boolean canPassThrough = cube.getCubeWorldPositions(wallLocation)
+        boolean canPassThrough = cube.getCubeWallPositions(wallLocation)
             .allMatch(worldPos -> {
                 Material material = world.getBlockAt(worldPos).getType();
                 return PlayerCube.isAir(material);
@@ -159,7 +159,7 @@ public class HolePreview {
         // ★重要：緑（通れる）の時だけなぞり判定を行う
         if (canPassThrough && wallHoles.containsKey(wallZ) && !completedWalls.contains(wallZ)) {
             Set<String> currentlyTracedHoles = tracedHoles.get(wallZ);
-            cube.getCubeWorldPositions(wallLocation)
+            cube.getCubeWallPositions(wallLocation)
                 .filter(worldPos -> PlayerCube.isAir(world.getBlockAt(worldPos).getType()))
                 .forEach(worldPos -> {
                     String holeKey = worldPos.getBlockX() + "," + worldPos.getBlockY() + "," + worldPos.getBlockZ();
@@ -190,7 +190,7 @@ public class HolePreview {
         Set<String> currentPositions = new HashSet<>();
         
         // キューブの全ブロック位置にプレビューパネルを表示
-        cube.getCubeWorldPositions(wallLocation)
+        cube.getCubeWallPositions(wallLocation)
             .forEach(worldPos -> {
                 String posKey = worldPos.getBlockX() + "," + worldPos.getBlockY() + "," + worldPos.getBlockZ();
                 currentPositions.add(posKey);

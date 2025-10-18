@@ -13,6 +13,7 @@ import io.papermc.paper.entity.TeleportFlag;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
+import org.joml.Vector2i;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -408,17 +409,24 @@ public class PlayerCube {
     
     /**
      * キューブの有効なブロックの世界座標をStreamとして返す
-     * @param centerLocation 中心位置 (baseLocationやwallLocation)
+     * @param cubeLocation 中心位置 (baseLocationやwallLocation)
      * @return 有効なブロックの世界座標LocationのStream
      */
-    public Stream<Location> getCubeWorldPositions(Location centerLocation) {
-        Location blockLocation = centerLocation.toBlockLocation();
-        
+    public Stream<Location> getCubeWorldPositions(Location cubeLocation) {
+        return getCubeOffsets().map(offset -> cubeLocation.toBlockLocation()
+                .add(Math.round(offset.x), Math.round(offset.y), Math.round(offset.z)));
+    }
+    
+    /**
+     * キューブを投影した壁ブロックの世界座標をStreamとして返す
+     * @param wallLocation 壁の位置
+     * @return 有効なブロックの世界座標LocationのStream
+     */
+    public Stream<Location> getCubeWallPositions(Location wallLocation) {
         return getCubeOffsets()
-            .map(offset -> new Location(world, 
-                blockLocation.getBlockX() + Math.round(offset.x),
-                blockLocation.getBlockY() + Math.round(offset.y),
-                centerLocation.getBlockZ()));
+            .map(offset -> new Vector2i(Math.round(offset.x), Math.round(offset.y)))
+            .distinct()
+            .map(offset -> wallLocation.toBlockLocation().clone().add(offset.x, offset.y, 0));
     }
 
     /**
