@@ -10,6 +10,7 @@ import com.comphenix.protocol.events.PacketEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -154,8 +155,13 @@ public class PlayerGameListener implements Listener {
         data.cube.stopContinuousBoosting();
 
         // キューブに回転を適用
-        data.cube.applyRotation(newRotation);
-
+        boolean rotationSuccess = data.cube.applyRotation(newRotation);
+        
+        // 回転が成功した場合のみ効果音を再生
+        if (rotationSuccess) {
+            data.player.playSound(data.player.getLocation(), Sound.BLOCK_GRINDSTONE_USE, 1.0f, 1.0f);
+        }
+        
         // クールダウンタイムスタンプを更新
         data.lastCommandTick = plugin.getServer().getCurrentTick();
     }

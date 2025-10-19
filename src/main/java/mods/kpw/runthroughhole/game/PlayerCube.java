@@ -199,11 +199,11 @@ public class PlayerCube {
     }
 
     // 回転を適用
-    public void applyRotation(Quaternionf newRotation) {
+    public boolean applyRotation(Quaternionf newRotation) {
         // 回転後に衝突するかチェック
         if (wouldCollideAfterRotation(newRotation)) {
             // 衝突する場合は回転をキャンセル
-            return;
+            return false;
         }
 
         // 現在の回転に新しい回転を適用
@@ -213,6 +213,7 @@ public class PlayerCube {
         this.rotation = rotation;
 
         updateTransformation();
+        return true; // 回転成功
     }
 
     // BlockDisplayのTransformationを更新（XY位置と回転）
