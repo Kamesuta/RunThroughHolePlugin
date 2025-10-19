@@ -1,4 +1,4 @@
-package mods.kpw.runthroughhole;
+package mods.kpw.runthroughhole.game;
 
 import org.bukkit.Location;
 

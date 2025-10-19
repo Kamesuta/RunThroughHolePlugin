@@ -1,4 +1,4 @@
-package mods.kpw.runthroughhole;
+package mods.kpw.runthroughhole.player;
 
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
@@ -17,6 +17,9 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+
+import mods.kpw.runthroughhole.Main;
+import mods.kpw.runthroughhole.game.PlayerCube;
 
 import java.time.Duration;
 import java.util.UUID;

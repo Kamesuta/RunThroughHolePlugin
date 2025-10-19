@@ -1,7 +1,6 @@
-package mods.kpw.runthroughhole;
+package mods.kpw.runthroughhole.game;
 
 import org.bukkit.Location;
-import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;

@@ -3,6 +3,10 @@ package mods.kpw.runthroughhole;
 import org.bukkit.plugin.java.JavaPlugin;
 import java.util.logging.Logger;
 
+import mods.kpw.runthroughhole.player.PlayerDataManager;
+import mods.kpw.runthroughhole.player.PlayerGameListener;
+import mods.kpw.runthroughhole.game.GameManager;
+
 public class Main extends JavaPlugin {
 
     private PlayerDataManager playerDataManager;

@@ -1,7 +1,11 @@
-package mods.kpw.runthroughhole;
+package mods.kpw.runthroughhole.player;
 
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+
+import mods.kpw.runthroughhole.game.PlayerCube;
+import mods.kpw.runthroughhole.game.CubeCamera;
+import mods.kpw.runthroughhole.game.HolePreview;
 
 public class PlayerData {
     public PlayerCube cube; // キャラのキューブ

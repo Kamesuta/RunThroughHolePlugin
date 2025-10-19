@@ -1,4 +1,4 @@
-package mods.kpw.runthroughhole;
+package mods.kpw.runthroughhole.player;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package mods.kpw.runthroughhole;
+package mods.kpw.runthroughhole.game;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -15,6 +15,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import mods.kpw.runthroughhole.Main;
 
 /**
  * 前方の壁の穴に対してプレビュー表示を行うクラス

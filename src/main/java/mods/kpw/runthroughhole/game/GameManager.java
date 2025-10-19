@@ -1,4 +1,4 @@
-package mods.kpw.runthroughhole;
+package mods.kpw.runthroughhole.game;
 
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -19,6 +19,10 @@ import net.kyori.adventure.title.Title;
 
 import java.time.Duration;
 import java.util.UUID;
+
+import mods.kpw.runthroughhole.player.PlayerDataManager;
+import mods.kpw.runthroughhole.player.PlayerData;
+import mods.kpw.runthroughhole.Main;
 
 /**
  * ゲームロジックの管理を行うクラス
