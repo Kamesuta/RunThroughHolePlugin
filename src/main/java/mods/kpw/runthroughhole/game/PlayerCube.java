@@ -141,10 +141,17 @@ public class PlayerCube {
     }
 
     // グリッド位置を移動（XY方向のみ）
-    public void move(Vector3f delta) {
+    public boolean move(Vector3f delta) {
+        // 移動先で衝突するかチェック
+        if (wouldCollideAt(delta)) {
+            // 衝突する場合は移動をキャンセル
+            return false;
+        }
+        
         this.gridPosition.add(delta);
         // XY移動はTransformationで更新（Zは触らない）
         updateTransformation();
+        return true; // 移動成功
     }
 
     // 加速状態を設定

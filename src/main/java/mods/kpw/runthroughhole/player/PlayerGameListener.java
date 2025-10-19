@@ -254,13 +254,15 @@ public class PlayerGameListener implements Listener {
             // 移動操作があった場合、連続加速を中止
             playerData.cube.stopContinuousBoosting();
 
-            // 移動先で衝突するかチェック
-            if (!playerData.cube.wouldCollideAt(gridMove)) {
-                // 衝突しない場合のみ移動
-                playerData.cube.move(gridMove);
+            // キューブに移動を適用
+            boolean moveSuccess = playerData.cube.move(gridMove);
+            
+            // 移動が成功した場合のみ効果音を再生
+            if (moveSuccess) {
+                playerData.player.playSound(playerData.player.getLocation(), Sound.BLOCK_PISTON_EXTEND, 1.0f, 1.0f);
                 playerData.lastMoveTick = currentTick;
             }
-            // 衝突する場合は移動をキャンセル（何もしない）
+            // 移動が失敗した場合は何もしない
         }
     }
 
