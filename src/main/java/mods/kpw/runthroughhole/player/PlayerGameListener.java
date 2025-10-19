@@ -159,7 +159,7 @@ public class PlayerGameListener implements Listener {
         
         // 回転が成功した場合のみ効果音を再生
         if (rotationSuccess) {
-            data.player.playSound(data.player.getLocation(), Sound.BLOCK_GRINDSTONE_USE, 1.0f, 1.0f);
+            data.player.playSound(data.player.getLocation(), Sound.ENTITY_SNIFFER_DROP_SEED, 1.0f, 1.0f);
         }
         
         // クールダウンタイムスタンプを更新
@@ -210,6 +210,9 @@ public class PlayerGameListener implements Listener {
             return;
         }
 
+        // 加速が開始されていない場合のみ効果音を再生するため、状態を先に保存
+        boolean wasNotBoosting = !playerData.isSpacePressed;
+
         // Spaceキーの押下状態を更新して速度を制御
         playerData.isSpacePressed = jump;
 
@@ -217,10 +220,16 @@ public class PlayerGameListener implements Listener {
             // プレビューパネルが緑でSpaceキーが押された場合、連続加速を開始
             Boolean isGreen = playerData.preview.isPreviewGreen();
             if (isGreen != null && isGreen) {
+                playerData.player.playSound(playerData.player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.0f, 1.0f);
                 playerData.cube.startContinuousBoosting();
             }
             // ジャンプキーが押された場合、加速開始
             playerData.cube.setBoosting(jump);
+
+            // 加速開始時の効果音を再生（Spaceキーが押された瞬間のみ）
+            if (wasNotBoosting) {
+                playerData.player.playSound(playerData.player.getLocation(), Sound.ENTITY_GHAST_SHOOT, 1.0f, 1.0f);
+            }
         } else {
             // 連続加速モードじゃない場合、ジャンプキーを離したら加速停止
             if (!playerData.cube.isContinuousBoosting()) {
@@ -259,7 +268,7 @@ public class PlayerGameListener implements Listener {
             
             // 移動が成功した場合のみ効果音を再生
             if (moveSuccess) {
-                playerData.player.playSound(playerData.player.getLocation(), Sound.BLOCK_PISTON_EXTEND, 1.0f, 1.0f);
+                playerData.player.playSound(playerData.player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
                 playerData.lastMoveTick = currentTick;
             }
             // 移動が失敗した場合は何もしない
