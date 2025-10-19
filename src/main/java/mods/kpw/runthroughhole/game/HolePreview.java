@@ -6,7 +6,6 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.BlockDisplay;
-import org.bukkit.entity.Player;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
@@ -15,8 +14,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import mods.kpw.runthroughhole.Main;
 
 /**
  * 前方の壁の穴に対してプレビュー表示を行うクラス
@@ -45,7 +42,7 @@ public class HolePreview {
     private static final int WALL_SEARCH_LENGTH = 100;
     
     
-    public HolePreview(World world, Main plugin) {
+    public HolePreview(World world) {
         this.world = world;
         this.holeState = new HoleState();
         this.previewPanelMap = new HashMap<>();
@@ -57,9 +54,8 @@ public class HolePreview {
     /**
      * プレビューを更新
      * @param cube プレイヤーのキューブ
-     * @param player プレイヤー（エフェクト用）
      */
-    public void update(PlayerCube cube, Player player) {
+    public void update(PlayerCube cube) {
         // キューブの現在位置を取得
         Location currentLocation = cube.getCurrentLocation();
         // 前方の壁を探索

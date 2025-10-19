@@ -51,7 +51,7 @@ public class PlayerGameListener implements Listener {
                 Player player = event.getPlayer();
                 if (player == null) return;
                 
-                PlayerData data = mainPlugin.getPlayerDataManager().getPlayerData(player.getUniqueId());
+                PlayerData data = mainPlugin.getPlayerDataManager().getPlayerData(player);
                 if (data == null || data.camera == null || data.isGameOver) return;
                 
                 boolean forward, backward, left, right, jump, shift;
@@ -81,13 +81,7 @@ public class PlayerGameListener implements Listener {
                 
                 Bukkit.getScheduler().runTask(mainPlugin, () -> {
                     try {
-                        // Shiftキーが押された場合はゲームオーバー
-                        if (finalShift) {
-                            mainPlugin.getGameManager().gameOver(player, "スニークキーが押されたためゲームを中止します");
-                            return;
-                        }
-                        
-                        handleWASDInput(player, data, finalLeft, finalRight, finalForward, finalBackward, finalJump);
+                        handleWASDInput(data, finalLeft, finalRight, finalForward, finalBackward, finalJump, finalShift);
                     } catch (Exception e) {
                         Main.logger.severe("[STEER_VEHICLE] handleWASDInput実行エラー: " + e.getMessage());
                         e.printStackTrace();
@@ -105,7 +99,7 @@ public class PlayerGameListener implements Listener {
                 Player player = event.getPlayer();
                 if (player == null) return;
                 
-                PlayerData data = mainPlugin.getPlayerDataManager().getPlayerData(player.getUniqueId());
+                PlayerData data = mainPlugin.getPlayerDataManager().getPlayerData(player);
                 if (data == null || data.camera == null || data.isGameOver) return;
                 
                 float yaw, pitch;
@@ -125,7 +119,7 @@ public class PlayerGameListener implements Listener {
                 
                 Bukkit.getScheduler().runTask(mainPlugin, () -> {
                     try {
-                        handleViewRotation(player, player.getUniqueId(), data, finalYaw, finalPitch);
+                        handleViewRotation(data, finalYaw, finalPitch);
                     } catch (Exception e) {
                         Main.logger.severe("[LOOK] handleViewRotation実行エラー: " + e.getMessage());
                         e.printStackTrace();
@@ -143,7 +137,9 @@ public class PlayerGameListener implements Listener {
 
     // 回転を適用してBlockDisplayを更新する共通メソッド
     private void applyRotation(UUID playerId, Quaternionf newRotation) {
-        PlayerData data = plugin.getPlayerDataManager().getPlayerData(playerId);
+        Player player = plugin.getServer().getPlayer(playerId);
+        if (player == null) return;
+        PlayerData data = plugin.getPlayerDataManager().getPlayerData(player);
         if (data == null || data.cube == null) return;
 
         // 回転操作があった場合、連続加速を中止
@@ -160,8 +156,7 @@ public class PlayerGameListener implements Listener {
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
-        PlayerData data = plugin.getPlayerDataManager().getPlayerData(playerId);
+        PlayerData data = plugin.getPlayerDataManager().getPlayerData(player);
         if (data == null || data.cube == null || data.isGameOver)
             return; // ゲーム中でないプレイヤーまたはゲームオーバー中のプレイヤーは無視
 
@@ -188,35 +183,41 @@ public class PlayerGameListener implements Listener {
         }
 
         if (shouldRotate) {
-            applyRotation(playerId, newRotation);
+            applyRotation(player.getUniqueId(), newRotation);
             data.lastCommandTick = currentTick;
         }
     }
 
     // WASD入力を処理
-    private void handleWASDInput(Player player, PlayerData data, boolean left, boolean right, boolean forward, boolean backward, boolean jump) {
+    private void handleWASDInput(PlayerData playerData, boolean left, boolean right, boolean forward, boolean backward, boolean jump, boolean shift) {
+        // Shiftキーが押された場合はゲームオーバー
+        if (shift) {
+            plugin.getGameManager().gameOver(playerData, "スニークキーが押されたためゲームを中止します", null);
+            return;
+        }
+        
         // Spaceキーの押下状態を更新して速度を制御
-        data.isSpacePressed = jump;
+        playerData.isSpacePressed = jump;
         
         if (jump) {
             // プレビューパネルが緑でSpaceキーが押された場合、連続加速を開始
-            Boolean isGreen = data.preview.isPreviewGreen();
+            Boolean isGreen = playerData.preview.isPreviewGreen();
             if (isGreen != null && isGreen) {
-                data.cube.startContinuousBoosting();
+                playerData.cube.startContinuousBoosting();
             }
             // ジャンプキーが押された場合、加速開始
-            data.cube.setBoosting(jump);
+            playerData.cube.setBoosting(jump);
         } else {
             // 連続加速モードじゃない場合、ジャンプキーを離したら加速停止
-            if (!data.cube.isContinuousBoosting()) {
-                data.cube.setBoosting(jump);
+            if (!playerData.cube.isContinuousBoosting()) {
+                playerData.cube.setBoosting(jump);
             }
         }
         
         
         int currentTick = plugin.getServer().getCurrentTick();
         int moveCooldownTicks = PlayerCube.MOVE_INTERPOLATION_DURATION * 2; // Interpolation時間の2倍をクールダウンに
-        if (currentTick - data.lastMoveTick < moveCooldownTicks) {
+        if (currentTick - playerData.lastMoveTick < moveCooldownTicks) {
             return; // クールダウン中
         }
         
@@ -238,76 +239,76 @@ public class PlayerGameListener implements Listener {
         // キューブを移動（移動先に衝突がない場合のみ）
         if (gridMove.x != 0 || gridMove.y != 0 || gridMove.z != 0) {
             // 移動操作があった場合、連続加速を中止
-            data.cube.stopContinuousBoosting();
+            playerData.cube.stopContinuousBoosting();
             
             // 移動先で衝突するかチェック
-            if (!data.cube.wouldCollideAt(gridMove)) {
+            if (!playerData.cube.wouldCollideAt(gridMove)) {
                 // 衝突しない場合のみ移動
-                data.cube.move(gridMove);
-                data.lastMoveTick = currentTick;
+                playerData.cube.move(gridMove);
+                playerData.lastMoveTick = currentTick;
             }
             // 衝突する場合は移動をキャンセル（何もしない）
         }
     }
     
-    private void handleViewRotation(Player player, UUID playerId, PlayerData data, float currentYaw, float currentPitch) {
+    private void handleViewRotation(PlayerData playerData, float currentYaw, float currentPitch) {
         // 現在のtickを取得
         int currentTick = plugin.getServer().getCurrentTick();
 
         // クールダウンチェック（tickベース）
         int rotationCooldownTicks = PlayerCube.ROTATION_INTERPOLATION_DURATION * 2; // Interpolation時間の2倍をクールダウンに
-        boolean isInCooldown = (currentTick - data.lastCommandTick) < rotationCooldownTicks;
+        boolean isInCooldown = (currentTick - playerData.lastCommandTick) < rotationCooldownTicks;
 
         if (!isInCooldown) {
             // 現在の目標視点をプレイヤーの視線にゆっくりとLerp
-            data.currentTargetYaw = lerpAngle(data.currentTargetYaw, currentYaw, LERP_SPEED);
-            data.currentTargetPitch = lerpAngle(data.currentTargetPitch, currentPitch, LERP_SPEED);
+            playerData.currentTargetYaw = lerpAngle(playerData.currentTargetYaw, currentYaw, LERP_SPEED);
+            playerData.currentTargetPitch = lerpAngle(playerData.currentTargetPitch, currentPitch, LERP_SPEED);
         }
 
         // 現在の目標視点からのずれを計算
-        float yawDiff = normalizeAngle(currentYaw - data.currentTargetYaw);
-        float pitchDiff = normalizeAngle(currentPitch - data.currentTargetPitch);
+        float yawDiff = normalizeAngle(currentYaw - playerData.currentTargetYaw);
+        float pitchDiff = normalizeAngle(currentPitch - playerData.currentTargetPitch);
 
         // 左右（Yaw）と上下（Pitch）で独立して判定
         boolean isYawOutside = Math.abs(yawDiff) > GESTURE_THRESHOLD;
         boolean isPitchOutside = Math.abs(pitchDiff) > GESTURE_THRESHOLD;
 
         // Yaw回転判定
-        if (isYawOutside && !isInCooldown && !data.isYawOutside) {
+        if (isYawOutside && !isInCooldown && !playerData.isYawOutside) {
             Quaternionf newRotation = new Quaternionf();
             if (yawDiff > 0) { // 右
                 newRotation.rotateAxis((float) Math.toRadians(-90.0f), 0, 1, 0);
             } else { // 左
                 newRotation.rotateAxis((float) Math.toRadians(90.0f), 0, 1, 0);
             }
-            applyRotation(playerId, newRotation);
-            data.lastCommandTick = currentTick;
-            data.isYawOutside = true;
+            applyRotation(playerData.player.getUniqueId(), newRotation);
+            playerData.lastCommandTick = currentTick;
+            playerData.isYawOutside = true;
         } else if (!isYawOutside) {
-            data.isYawOutside = false;
+            playerData.isYawOutside = false;
         }
 
         // Pitch回転判定
-        if (isPitchOutside && !isInCooldown && !data.isPitchOutside) {
+        if (isPitchOutside && !isInCooldown && !playerData.isPitchOutside) {
             Quaternionf newRotation = new Quaternionf();
             if (pitchDiff > 0) { // 下
                 newRotation.rotateAxis((float) Math.toRadians(-90.0f), -1, 0, 0);
             } else { // 上
                 newRotation.rotateAxis((float) Math.toRadians(90.0f), -1, 0, 0);
             }
-            applyRotation(playerId, newRotation);
-            data.lastCommandTick = currentTick;
-            data.isPitchOutside = true;
+            applyRotation(playerData.player.getUniqueId(), newRotation);
+            playerData.lastCommandTick = currentTick;
+            playerData.isPitchOutside = true;
         } else if (!isPitchOutside) {
-            data.isPitchOutside = false;
+            playerData.isPitchOutside = false;
         }
 
         // ガイド表示：罫線を使った9パターン
-        updateGuideDisplay(player, data, yawDiff, pitchDiff, isYawOutside, isPitchOutside);
+        updateGuideDisplay(playerData, yawDiff, pitchDiff, isYawOutside, isPitchOutside);
     }
 
     // ガイド表示の更新
-    private void updateGuideDisplay(Player player, PlayerData data, float yawDiff, float pitchDiff, boolean isYawOutside, boolean isPitchOutside) {
+    private void updateGuideDisplay(PlayerData playerData, float yawDiff, float pitchDiff, boolean isYawOutside, boolean isPitchOutside) {
         String currentGuide = null;
         
         if (!isYawOutside && !isPitchOutside) {
@@ -340,21 +341,21 @@ public class PlayerGameListener implements Listener {
         }
         
         // ガイドが変更された場合のみ更新
-        if (currentGuide != null && !currentGuide.equals(data.currentGuide)) {
+        if (currentGuide != null && !currentGuide.equals(playerData.currentGuide)) {
             Title title = Title.title(
                     Component.empty(),
                     Component.text(currentGuide),
                     Title.Times.times(Duration.ofMillis(0), Duration.ofDays(1), Duration.ofMillis(0)));
-            player.showTitle(title);
-            data.currentGuide = currentGuide;
-        } else if (currentGuide == null && data.currentGuide != null) {
+            playerData.player.showTitle(title);
+            playerData.currentGuide = currentGuide;
+        } else if (currentGuide == null && playerData.currentGuide != null) {
             // ガイドを非表示
             Title title = Title.title(
                     Component.empty(),
                     Component.empty(),
                     Title.Times.times(Duration.ofMillis(0), Duration.ofMillis(0), Duration.ofMillis(0)));
-            player.showTitle(title);
-            data.currentGuide = null;
+            playerData.player.showTitle(title);
+            playerData.currentGuide = null;
         }
     }
 

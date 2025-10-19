@@ -2,12 +2,14 @@ package mods.kpw.runthroughhole.player;
 
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 
 import mods.kpw.runthroughhole.game.PlayerCube;
 import mods.kpw.runthroughhole.game.CubeCamera;
 import mods.kpw.runthroughhole.game.HolePreview;
 
 public class PlayerData {
+    public Player player; // プレイヤーオブジェクト
     public PlayerCube cube; // キャラのキューブ
     public CubeCamera camera; // カメラ
     public HolePreview preview; // 穴のプレビュー表示
@@ -29,7 +31,8 @@ public class PlayerData {
     public float currentTargetYaw; // 現在追従している目標Yaw
     public float currentTargetPitch; // 現在追従している目標Pitch
 
-    public PlayerData() {
+    public PlayerData(Player player) {
+        this.player = player;
         this.currentGuide = null;
         this.isYawOutside = false;
         this.isPitchOutside = false;

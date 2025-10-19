@@ -18,11 +18,8 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.Title;
 
 import java.time.Duration;
-import java.util.UUID;
-
 import mods.kpw.runthroughhole.player.PlayerDataManager;
 import mods.kpw.runthroughhole.player.PlayerData;
-import mods.kpw.runthroughhole.Main;
 
 /**
  * ゲームロジックの管理を行うクラス
@@ -57,9 +54,9 @@ public class GameManager {
                     
                     if (!collidedBlocks.isEmpty()) {
                         // プレイヤーを取得
-                        Player player = data.camera != null ? data.camera.getPlayer() : null;
+                        Player player = data.player;
                         if (player != null) {
-                            gameOver(player, "ブロックに衝突しました！", collidedBlocks);
+                            gameOver(data, "ブロックに衝突しました！", collidedBlocks);
                         }
                         continue;
                     }
@@ -71,10 +68,7 @@ public class GameManager {
                     
                     // プレビューを更新
                     if (data.preview != null && data.camera != null) {
-                        Player player = data.camera.getPlayer();
-                        if (player != null) {
-                            data.preview.update(data.cube, player);
-                        }
+                        data.preview.update(data.cube);
                     }
                 }
             }
@@ -93,11 +87,11 @@ public class GameManager {
     
     /**
      * ゲームがアクティブかチェックする
-     * @param playerId プレイヤーのUUID
+     * @param player プレイヤーオブジェクト
      * @return ゲームがアクティブな場合はtrue
      */
-    public boolean isGameActive(UUID playerId) {
-        PlayerData data = playerDataManager.getPlayerData(playerId);
+    public boolean isGameActive(Player player) {
+        PlayerData data = playerDataManager.getPlayerData(player);
         return data != null && data.cube != null && !data.isGameOver;
     }
     
@@ -106,8 +100,7 @@ public class GameManager {
      * @param player プレイヤー
      */
     public void startGame(Player player) {
-        UUID playerId = player.getUniqueId();
-        if (playerDataManager.hasPlayerData(playerId)) {
+        if (playerDataManager.hasPlayerData(player)) {
             player.sendMessage("すでにゲーム中です。");
             return;
         }
@@ -121,23 +114,23 @@ public class GameManager {
         Location baseLocation = initialLocation.clone().add(0, 0, CubeCamera.CAMERA_DISTANCE_BEHIND);
         
         // PlayerDataを作成
-        PlayerData data = playerDataManager.getOrCreatePlayerData(playerId);
+        PlayerData playerData = playerDataManager.getOrCreatePlayerData(player);
         
         // 現在のゲームモードを保存
-        data.originalGameMode = player.getGameMode();
+        playerData.originalGameMode = player.getGameMode();
         
         // アドベンチャーモードに変更
         player.setGameMode(GameMode.ADVENTURE);
 
         // キャラのキューブを作成
-        data.cube = new PlayerCube(player.getWorld(), baseLocation.clone());
+        playerData.cube = new PlayerCube(player.getWorld(), baseLocation.clone());
         
         // カメラを作成してセットアップ
-        data.camera = new CubeCamera(player.getWorld(), baseLocation.clone(), data.cube);
-        data.camera.setup(player);
+        playerData.camera = new CubeCamera(player.getWorld(), baseLocation.clone(), playerData.cube);
+        playerData.camera.setup(player);
         
         // プレビュー表示を作成
-        data.preview = new HolePreview(player.getWorld(), (Main) plugin);
+        playerData.preview = new HolePreview(player.getWorld());
 
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);
@@ -165,33 +158,32 @@ public class GameManager {
         
         plugin.getLogger().info(player.getName() + "がゲームを開始しました。");
     }
-
+    
     /**
      * ゲーム終了処理
      * @param player プレイヤー
      */
     public void stopGame(Player player) {
-        UUID playerId = player.getUniqueId();
-        PlayerData data = playerDataManager.removePlayerData(playerId);
+        PlayerData playerData = playerDataManager.removePlayerData(player);
         
-        if (data == null) {
+        if (playerData == null) {
             player.sendMessage("ゲーム中ではありません。");
             return;
         }
 
         // カメラをクリーンアップ
-        if (data.camera != null) {
-            data.camera.cleanup();
+        if (playerData.camera != null) {
+            playerData.camera.cleanup();
         }
 
         // キューブを削除
-        if (data.cube != null) {
-            data.cube.remove();
+        if (playerData.cube != null) {
+            playerData.cube.remove();
         }
         
         // プレビューをクリーンアップ
-        if (data.preview != null) {
-            data.preview.cleanup();
+        if (playerData.preview != null) {
+            playerData.preview.cleanup();
         }
         
         // 左手（オフハンド）の石のボタンを削除
@@ -201,9 +193,9 @@ public class GameManager {
         }
         
         // 元のゲームモードに戻す
-        if (data.originalGameMode != null) {
-            player.setGameMode(data.originalGameMode);
-            plugin.getLogger().info(player.getName() + "のゲームモードを" + data.originalGameMode + "に戻しました");
+        if (playerData.originalGameMode != null) {
+            player.setGameMode(playerData.originalGameMode);
+            plugin.getLogger().info(player.getName() + "のゲームモードを" + playerData.originalGameMode + "に戻しました");
         }
 
         player.sendMessage("ゲームを終了しました。");
@@ -212,31 +204,34 @@ public class GameManager {
     
     /**
      * ゲームオーバー処理（衝突ブロックあり）
-     * @param player プレイヤー
+     * @param playerData プレイヤーデータ
      * @param reason ゲームオーバーの理由
      * @param collidedBlocks 衝突したブロックのリスト
      */
-    public void gameOver(Player player, String reason, List<CubeBlock> collidedBlocks) {
-        UUID playerId = player.getUniqueId();
-        PlayerData data = playerDataManager.getPlayerData(playerId);
+    public void gameOver(PlayerData playerData, String reason, List<CubeBlock> collidedBlocks) {
+        Player player = playerData.player;
+        if (player == null) {
+            plugin.getLogger().warning("PlayerDataにPlayerが設定されていません");
+            return;
+        }
         
         // 既にゲームオーバー処理中の場合は何もしない
-        if (data == null || data.isGameOver) {
+        if (playerData.isGameOver) {
             return;
         }
         
         // ゲームオーバーフラグを立てて重複呼び出しを防ぐ
-        data.isGameOver = true;
+        playerData.isGameOver = true;
         plugin.getLogger().info(player.getName() + "のゲームオーバー処理を開始");
         
         // 衝突したブロックに演出を適用
-        if (collidedBlocks != null && !collidedBlocks.isEmpty() && data.cube != null) {
+        if (collidedBlocks != null && !collidedBlocks.isEmpty() && playerData.cube != null) {
             for (CubeBlock block : collidedBlocks) {
                 // ブロックを赤いガラスに変更
-                data.cube.changeBlockColor(block, Material.RED_STAINED_GLASS);
+                playerData.cube.changeBlockColor(block, Material.RED_STAINED_GLASS);
                 
                 // ブロックの位置を取得
-                Location blockLoc = data.cube.getBlockDisplayLocation(block);
+                Location blockLoc = playerData.cube.getBlockDisplayLocation(block);
                 if (blockLoc != null) {
                     // パーティクルエフェクト（炎とダメージ）
                     player.getWorld().spawnParticle(Particle.FLAME, blockLoc, 20, 0.3, 0.3, 0.3, 0.05);
@@ -264,12 +259,12 @@ public class GameManager {
         player.sendMessage(Component.text("ゲームオーバー: " + reason, NamedTextColor.RED));
         
         // すぐにプレイヤーを降車させて、衝突原因を振り返れるようにする
-        if (data.camera != null) {
+        if (playerData.camera != null) {
             // 椅子の現在位置を取得
-            Location dismountLoc = data.camera.getEntity().getLocation();
+            Location dismountLoc = playerData.camera.getEntity().getLocation();
             
             // プレイヤーを降車
-            data.camera.eject();
+            playerData.camera.eject();
             
             // プレイヤーを椅子の位置にテレポート（地面に落ちないように）
             player.teleport(dismountLoc);
@@ -287,22 +282,12 @@ public class GameManager {
     }
     
     /**
-     * ゲームオーバー処理（衝突ブロックなし - 互換性のため）
-     * @param player プレイヤー
-     * @param reason ゲームオーバーの理由
-     */
-    public void gameOver(Player player, String reason) {
-        gameOver(player, reason, null);
-    }
-    
-    /**
      * 全アクティブなプレイヤーのゲームを終了する
      */
     public void stopAllGames() {
-        for (UUID playerId : playerDataManager.getPlayerDataMap().keySet()) {
-            Player player = plugin.getServer().getPlayer(playerId);
-            if (player != null) {
-                stopGame(player);
+        for (PlayerData playerData : playerDataManager.getAllPlayerData()) {
+            if (playerData.player != null) {
+                stopGame(playerData.player);
             }
         }
     }

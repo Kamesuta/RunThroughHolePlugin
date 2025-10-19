@@ -1,61 +1,74 @@
 package mods.kpw.runthroughhole.player;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Collection;
+import org.bukkit.entity.Player;
 
 /**
  * プレイヤーデータの管理を行うクラス
  * MainクラスからPlayerData管理機能を分離
  */
 public class PlayerDataManager {
-    
-    private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
+    // ProtocolLib関連のスレッドからアクセスされるため、ConcurrentHashMapを使用
+    private final Map<UUID, PlayerData> playerDataMap = new ConcurrentHashMap<>();
     
     /**
      * プレイヤーデータを取得する
-     * @param playerId プレイヤーのUUID
+     * @param player プレイヤーオブジェクト
      * @return PlayerData、存在しない場合はnull
      */
-    public PlayerData getPlayerData(UUID playerId) {
-        return playerDataMap.get(playerId);
+    public PlayerData getPlayerData(Player player) {
+        PlayerData data = playerDataMap.get(player.getUniqueId());
+        if (data != null) {
+            data.player = player; // Playerオブジェクトを更新（リログ対応）
+        }
+        return data;
     }
     
     /**
      * プレイヤーデータを取得する。存在しない場合は新規作成する
-     * @param playerId プレイヤーのUUID
+     * @param player プレイヤーオブジェクト
      * @return PlayerData
      */
-    public PlayerData getOrCreatePlayerData(UUID playerId) {
-        return playerDataMap.computeIfAbsent(playerId, k -> new PlayerData());
+    public PlayerData getOrCreatePlayerData(Player player) {
+        PlayerData data = playerDataMap.computeIfAbsent(player.getUniqueId(), k -> {
+            PlayerData newData = new PlayerData(player);
+            return newData;
+        });
+        if (data != null) {
+            data.player = player; // Playerオブジェクトを更新（リログ対応）
+        }
+        return data;
     }
     
     /**
      * プレイヤーデータを追加する
-     * @param playerId プレイヤーのUUID
+     * @param player プレイヤーオブジェクト
      * @param data PlayerData
      */
-    public void addPlayerData(UUID playerId, PlayerData data) {
-        playerDataMap.put(playerId, data);
+    public void addPlayerData(Player player, PlayerData data) {
+        data.player = player; // Playerオブジェクトを設定
+        playerDataMap.put(player.getUniqueId(), data);
     }
     
     /**
      * プレイヤーデータを削除する
-     * @param playerId プレイヤーのUUID
+     * @param player プレイヤーオブジェクト
      * @return 削除されたPlayerData、存在しない場合はnull
      */
-    public PlayerData removePlayerData(UUID playerId) {
-        return playerDataMap.remove(playerId);
+    public PlayerData removePlayerData(Player player) {
+        return playerDataMap.remove(player.getUniqueId());
     }
     
     /**
      * プレイヤーデータが存在するかチェックする
-     * @param playerId プレイヤーのUUID
+     * @param player プレイヤーオブジェクト
      * @return 存在する場合はtrue
      */
-    public boolean hasPlayerData(UUID playerId) {
-        return playerDataMap.containsKey(playerId);
+    public boolean hasPlayerData(Player player) {
+        return playerDataMap.containsKey(player.getUniqueId());
     }
     
     /**
