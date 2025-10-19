@@ -455,12 +455,11 @@ public class PlayerCube {
     
     /**
      * 前方の壁を探索
-     * @param baseLocation 基準位置
      * @param startZ 探索開始Z座標
      * @param endZ 探索終了Z座標
      * @return 壁の位置（見つからなければnull）
      */
-    public Location findNextWall(Location baseLocation, double startZ, double endZ) {
+    public Location findNextWall(double startZ, double endZ) {
         // キューブの現在位置を取得
         Location currentLocation = getCurrentLocation();
         Location currentBlockLocation = currentLocation.toBlockLocation();

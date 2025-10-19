@@ -71,10 +71,10 @@ public class Main extends JavaPlugin {
                     }
                     
                     // プレビューを更新
-                    if (data.preview != null && data.initialLocation != null && data.camera != null) {
+                    if (data.preview != null && data.camera != null) {
                         Player player = data.camera.getPlayer();
                         if (player != null) {
-                            data.preview.update(data.cube, data.initialLocation, player);
+                            data.preview.update(data.cube, player);
                         }
                     }
                 }
@@ -198,15 +198,15 @@ public class Main extends JavaPlugin {
         }
 
         // プレイヤーの位置をブロックグリッドにスナップ
-        Location startLocation = player.getLocation().toCenterLocation();
-        startLocation.setYaw(0f);
-        startLocation.setPitch(0f);
-        // カメラの位置に合わせてオフセットを追加
-        startLocation.add(0, 0, CubeCamera.CAMERA_DISTANCE_BEHIND);
+        Location initialLocation = player.getLocation().toCenterLocation();
+        initialLocation.setYaw(0f);
+        initialLocation.setPitch(0f);
 
+        // カメラの位置に合わせてオフセットを追加
+        Location baseLocation = initialLocation.clone().add(0, 0, CubeCamera.CAMERA_DISTANCE_BEHIND);
+        
         // PlayerDataを作成
         PlayerData data = getOrCreatePlayerData(playerId);
-        data.initialLocation = startLocation.clone();
         
         // 現在のゲームモードを保存
         data.originalGameMode = player.getGameMode();
@@ -215,10 +215,10 @@ public class Main extends JavaPlugin {
         player.setGameMode(GameMode.ADVENTURE);
 
         // キャラのキューブを作成
-        data.cube = new PlayerCube(player.getWorld(), startLocation.clone());
+        data.cube = new PlayerCube(player.getWorld(), baseLocation.clone());
         
         // カメラを作成してセットアップ
-        data.camera = new CubeCamera(player.getWorld(), startLocation.clone(), data.cube);
+        data.camera = new CubeCamera(player.getWorld(), baseLocation.clone(), data.cube);
         data.camera.setup(player);
         
         // プレビュー表示を作成
