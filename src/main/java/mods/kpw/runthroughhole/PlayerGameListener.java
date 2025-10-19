@@ -48,7 +48,7 @@ public class PlayerGameListener implements Listener {
                 Player player = event.getPlayer();
                 if (player == null) return;
                 
-                PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
+                PlayerData data = mainPlugin.getPlayerDataManager().getPlayerData(player.getUniqueId());
                 if (data == null || data.camera == null || data.isGameOver) return;
                 
                 boolean forward, backward, left, right, jump, shift;
@@ -80,7 +80,7 @@ public class PlayerGameListener implements Listener {
                     try {
                         // Shiftキーが押された場合はゲームオーバー
                         if (finalShift) {
-                            mainPlugin.gameOver(player, "スニークキーが押されたためゲームを中止します");
+                            mainPlugin.getGameManager().gameOver(player, "スニークキーが押されたためゲームを中止します");
                             return;
                         }
                         
@@ -102,7 +102,7 @@ public class PlayerGameListener implements Listener {
                 Player player = event.getPlayer();
                 if (player == null) return;
                 
-                PlayerData data = mainPlugin.getPlayerData(player.getUniqueId());
+                PlayerData data = mainPlugin.getPlayerDataManager().getPlayerData(player.getUniqueId());
                 if (data == null || data.camera == null || data.isGameOver) return;
                 
                 float yaw, pitch;
@@ -140,7 +140,7 @@ public class PlayerGameListener implements Listener {
 
     // 回転を適用してBlockDisplayを更新する共通メソッド
     private void applyRotation(UUID playerId, Quaternionf newRotation) {
-        PlayerData data = plugin.getPlayerData(playerId);
+        PlayerData data = plugin.getPlayerDataManager().getPlayerData(playerId);
         if (data == null || data.cube == null) return;
 
         // 回転操作があった場合、連続加速を中止
@@ -158,7 +158,7 @@ public class PlayerGameListener implements Listener {
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
-        PlayerData data = plugin.getPlayerData(playerId);
+        PlayerData data = plugin.getPlayerDataManager().getPlayerData(playerId);
         if (data == null || data.cube == null || data.isGameOver)
             return; // ゲーム中でないプレイヤーまたはゲームオーバー中のプレイヤーは無視
 

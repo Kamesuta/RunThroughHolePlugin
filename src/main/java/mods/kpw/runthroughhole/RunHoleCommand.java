@@ -98,10 +98,10 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
         int successCount = 0;
         for (Player target : targets) {
             if (subCommand.equals("start")) {
-                plugin.startGame(target);
+                plugin.getGameManager().startGame(target);
                 successCount++;
             } else if (subCommand.equals("stop")) {
-                plugin.stopGame(target);
+                plugin.getGameManager().stopGame(target);
                 successCount++;
             }
         }

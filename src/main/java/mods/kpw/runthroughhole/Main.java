@@ -1,10 +1,6 @@
 package mods.kpw.runthroughhole;
 
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.util.Map;
-import java.util.UUID;
 import java.util.logging.Logger;
 
 public class Main extends JavaPlugin {
@@ -57,7 +53,7 @@ public class Main extends JavaPlugin {
         }
     }
 
-    // マネージャークラスへのアクセサメソッド（後方互換性のため）
+    // マネージャークラスへのアクセサメソッド
     public PlayerDataManager getPlayerDataManager() {
         return playerDataManager;
     }
@@ -68,36 +64,5 @@ public class Main extends JavaPlugin {
     
     public PlayerGameListener getGameListener() {
         return gameListener;
-    }
-    
-    // 後方互換性のためのメソッド
-    public Map<UUID, PlayerData> getPlayerDataMap() {
-        return playerDataManager != null ? playerDataManager.getPlayerDataMap() : null;
-    }
-    
-    public PlayerData getPlayerData(UUID playerId) {
-        return playerDataManager != null ? playerDataManager.getPlayerData(playerId) : null;
-    }
-    
-    public PlayerData getOrCreatePlayerData(UUID playerId) {
-        return playerDataManager != null ? playerDataManager.getOrCreatePlayerData(playerId) : null;
-    }
-    
-    public void startGame(Player player) {
-        if (gameManager != null) {
-            gameManager.startGame(player);
-        }
-    }
-    
-    public void stopGame(Player player) {
-        if (gameManager != null) {
-            gameManager.stopGame(player);
-        }
-    }
-    
-    public void gameOver(Player player, String reason) {
-        if (gameManager != null) {
-            gameManager.gameOver(player, reason);
-        }
     }
 }
