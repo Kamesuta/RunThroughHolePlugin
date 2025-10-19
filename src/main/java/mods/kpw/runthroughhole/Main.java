@@ -32,7 +32,7 @@ public class Main extends JavaPlugin {
         // イベントリスナーの登録
         gameListener = new PlayerGameListener(this);
         getServer().getPluginManager().registerEvents(gameListener, this);
-        
+
         // ゲームループを開始
         gameManager.startGameLoop();
     }
@@ -50,7 +50,7 @@ public class Main extends JavaPlugin {
         if (gameManager != null) {
             gameManager.stopAllGames();
         }
-        
+
         // プレイヤーデータをクリア
         if (playerDataManager != null) {
             playerDataManager.clearAllPlayerData();
@@ -61,11 +61,11 @@ public class Main extends JavaPlugin {
     public PlayerDataManager getPlayerDataManager() {
         return playerDataManager;
     }
-    
+
     public GameManager getGameManager() {
         return gameManager;
     }
-    
+
     public PlayerGameListener getGameListener() {
         return gameListener;
     }

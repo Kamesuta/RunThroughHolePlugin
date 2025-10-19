@@ -31,7 +31,7 @@ public class PlayerGameListener implements Listener {
 
     // ジェスチャー認識用
     private final float GESTURE_THRESHOLD = 10.0f; // ジェスチャー開始・中央判定の閾値（度）
-    
+
     // 視線追従設定
     private final float LERP_SPEED = 0.02f; // Lerpの速度（0.0-1.0、小さいほどゆっくり）
 
@@ -40,56 +40,60 @@ public class PlayerGameListener implements Listener {
         this.protocolManager = ProtocolLibrary.getProtocolManager();
         setupPacketListeners();
     }
-    
+
     private void setupPacketListeners() {
         Main mainPlugin = this.plugin;
-        
+
         // STEER_VEHICLEパケットリスナー（WASD入力）
-        protocolManager.addPacketListener(new PacketAdapter(mainPlugin, ListenerPriority.NORMAL, PacketType.Play.Client.STEER_VEHICLE) {
-            @Override
-            public void onPacketReceiving(PacketEvent event) {
-                Player player = event.getPlayer();
-                if (player == null) return;
-                
-                PlayerData data = mainPlugin.getPlayerDataManager().getPlayerData(player);
-                if (data == null || data.camera == null || data.isGameOver) return;
-                
-                boolean forward, backward, left, right, jump, shift;
-                
-                try {
-                    PacketContainer packet = event.getPacket();
-                    var input = packet.getStructures().read(0).getBooleans();
-                    forward = input.read(0);   // W
-                    backward = input.read(1);  // S
-                    left = input.read(2);      // A
-                    right = input.read(3);     // D
-                    jump = input.read(4);      // Space
-                    shift = input.read(5);     // Shift (スニーク)
-                } catch (Exception e) {
-                    Main.logger.warning("[STEER_VEHICLE] パケット解析エラー: " + e.getMessage());
-                    e.printStackTrace();
-                    return;
-                }
-                
-                // メインスレッドで実行
-                boolean finalForward = forward;
-                boolean finalBackward = backward;
-                boolean finalLeft = left;
-                boolean finalRight = right;
-                boolean finalJump = jump;
-                boolean finalShift = shift;
-                
-                Bukkit.getScheduler().runTask(mainPlugin, () -> {
-                    try {
-                        handleWASDInput(data, finalLeft, finalRight, finalForward, finalBackward, finalJump, finalShift);
-                    } catch (Exception e) {
-                        Main.logger.severe("[STEER_VEHICLE] handleWASDInput実行エラー: " + e.getMessage());
-                        e.printStackTrace();
+        protocolManager.addPacketListener(
+                new PacketAdapter(mainPlugin, ListenerPriority.NORMAL, PacketType.Play.Client.STEER_VEHICLE) {
+                    @Override
+                    public void onPacketReceiving(PacketEvent event) {
+                        Player player = event.getPlayer();
+                        if (player == null)
+                            return;
+
+                        PlayerData data = mainPlugin.getPlayerDataManager().getPlayerData(player);
+                        if (data == null || data.camera == null || data.isGameOver)
+                            return;
+
+                        boolean forward, backward, left, right, jump, shift;
+
+                        try {
+                            PacketContainer packet = event.getPacket();
+                            var input = packet.getStructures().read(0).getBooleans();
+                            forward = input.read(0); // W
+                            backward = input.read(1); // S
+                            left = input.read(2); // A
+                            right = input.read(3); // D
+                            jump = input.read(4); // Space
+                            shift = input.read(5); // Shift (スニーク)
+                        } catch (Exception e) {
+                            Main.logger.warning("[STEER_VEHICLE] パケット解析エラー: " + e.getMessage());
+                            e.printStackTrace();
+                            return;
+                        }
+
+                        // メインスレッドで実行
+                        boolean finalForward = forward;
+                        boolean finalBackward = backward;
+                        boolean finalLeft = left;
+                        boolean finalRight = right;
+                        boolean finalJump = jump;
+                        boolean finalShift = shift;
+
+                        Bukkit.getScheduler().runTask(mainPlugin, () -> {
+                            try {
+                                handleWASDInput(data, finalLeft, finalRight, finalForward, finalBackward, finalJump,
+                                        finalShift);
+                            } catch (Exception e) {
+                                Main.logger.severe("[STEER_VEHICLE] handleWASDInput実行エラー: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        });
                     }
                 });
-            }
-        });
-        
+
         // LOOKパケットリスナー（視点回転）
         protocolManager.addPacketListener(new PacketAdapter(mainPlugin, ListenerPriority.NORMAL,
                 PacketType.Play.Client.LOOK,
@@ -97,13 +101,15 @@ public class PlayerGameListener implements Listener {
             @Override
             public void onPacketReceiving(PacketEvent event) {
                 Player player = event.getPlayer();
-                if (player == null) return;
-                
+                if (player == null)
+                    return;
+
                 PlayerData data = mainPlugin.getPlayerDataManager().getPlayerData(player);
-                if (data == null || data.camera == null || data.isGameOver) return;
-                
+                if (data == null || data.camera == null || data.isGameOver)
+                    return;
+
                 float yaw, pitch;
-                
+
                 try {
                     yaw = event.getPacket().getFloat().read(0);
                     pitch = event.getPacket().getFloat().read(1);
@@ -112,11 +118,11 @@ public class PlayerGameListener implements Listener {
                     e.printStackTrace();
                     return;
                 }
-                
+
                 // メインスレッドで実行
                 float finalYaw = yaw;
                 float finalPitch = pitch;
-                
+
                 Bukkit.getScheduler().runTask(mainPlugin, () -> {
                     try {
                         handleViewRotation(data, finalYaw, finalPitch);
@@ -128,7 +134,7 @@ public class PlayerGameListener implements Listener {
             }
         });
     }
-    
+
     public void cleanup() {
         if (protocolManager != null) {
             protocolManager.removePacketListeners(plugin);
@@ -138,21 +144,22 @@ public class PlayerGameListener implements Listener {
     // 回転を適用してBlockDisplayを更新する共通メソッド
     private void applyRotation(UUID playerId, Quaternionf newRotation) {
         Player player = plugin.getServer().getPlayer(playerId);
-        if (player == null) return;
+        if (player == null)
+            return;
         PlayerData data = plugin.getPlayerDataManager().getPlayerData(player);
-        if (data == null || data.cube == null) return;
+        if (data == null || data.cube == null)
+            return;
 
         // 回転操作があった場合、連続加速を中止
         data.cube.stopContinuousBoosting();
 
         // キューブに回転を適用
         data.cube.applyRotation(newRotation);
-        
+
         // クールダウンタイムスタンプを更新
         data.lastCommandTick = plugin.getServer().getCurrentTick();
     }
 
-    
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
@@ -189,16 +196,17 @@ public class PlayerGameListener implements Listener {
     }
 
     // WASD入力を処理
-    private void handleWASDInput(PlayerData playerData, boolean left, boolean right, boolean forward, boolean backward, boolean jump, boolean shift) {
+    private void handleWASDInput(PlayerData playerData, boolean left, boolean right, boolean forward, boolean backward,
+            boolean jump, boolean shift) {
         // Shiftキーが押された場合はゲームオーバー
         if (shift) {
             plugin.getGameManager().gameOver(playerData, "スニークキーが押されたためゲームを中止します", null);
             return;
         }
-        
+
         // Spaceキーの押下状態を更新して速度を制御
         playerData.isSpacePressed = jump;
-        
+
         if (jump) {
             // プレビューパネルが緑でSpaceキーが押された場合、連続加速を開始
             Boolean isGreen = playerData.preview.isPreviewGreen();
@@ -213,16 +221,15 @@ public class PlayerGameListener implements Listener {
                 playerData.cube.setBoosting(jump);
             }
         }
-        
-        
+
         int currentTick = plugin.getServer().getCurrentTick();
         int moveCooldownTicks = PlayerCube.MOVE_INTERPOLATION_DURATION * 2; // Interpolation時間の2倍をクールダウンに
         if (currentTick - playerData.lastMoveTick < moveCooldownTicks) {
             return; // クールダウン中
         }
-        
+
         Vector3f gridMove = new Vector3f(0, 0, 0);
-        
+
         // 左右移動（A/D）
         if (left && !right) {
             gridMove.x = 1; // A
@@ -235,12 +242,12 @@ public class PlayerGameListener implements Listener {
         } else if (backward && !forward) {
             gridMove.y = -1; // S
         }
-        
+
         // キューブを移動（移動先に衝突がない場合のみ）
         if (gridMove.x != 0 || gridMove.y != 0 || gridMove.z != 0) {
             // 移動操作があった場合、連続加速を中止
             playerData.cube.stopContinuousBoosting();
-            
+
             // 移動先で衝突するかチェック
             if (!playerData.cube.wouldCollideAt(gridMove)) {
                 // 衝突しない場合のみ移動
@@ -250,7 +257,7 @@ public class PlayerGameListener implements Listener {
             // 衝突する場合は移動をキャンセル（何もしない）
         }
     }
-    
+
     private void handleViewRotation(PlayerData playerData, float currentYaw, float currentPitch) {
         // 現在のtickを取得
         int currentTick = plugin.getServer().getCurrentTick();
@@ -308,9 +315,10 @@ public class PlayerGameListener implements Listener {
     }
 
     // ガイド表示の更新
-    private void updateGuideDisplay(PlayerData playerData, float yawDiff, float pitchDiff, boolean isYawOutside, boolean isPitchOutside) {
+    private void updateGuideDisplay(PlayerData playerData, float yawDiff, float pitchDiff, boolean isYawOutside,
+            boolean isPitchOutside) {
         String currentGuide = null;
-        
+
         if (!isYawOutside && !isPitchOutside) {
             // 上下左右が基準値内
             currentGuide = "┼";
@@ -339,7 +347,7 @@ public class PlayerGameListener implements Listener {
             // 右下に外れている
             currentGuide = "┘";
         }
-        
+
         // ガイドが変更された場合のみ更新
         if (currentGuide != null && !currentGuide.equals(playerData.currentGuide)) {
             Title title = Title.title(
@@ -364,7 +372,7 @@ public class PlayerGameListener implements Listener {
         float diff = normalizeAngle(target - current);
         return current + diff * speed;
     }
-    
+
     private float normalizeAngle(float angle) {
         angle = angle % 360;
         if (angle > 180)

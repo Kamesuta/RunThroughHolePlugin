@@ -29,7 +29,7 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
         }
 
         String subCommand = args[0].toLowerCase();
-        
+
         if (!subCommand.equals("start") && !subCommand.equals("stop")) {
             sender.sendMessage("引数が不正です。/runhole <start|stop> [player|@selector]");
             return false;
@@ -44,18 +44,18 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("コンソールからはターゲットを指定する必要があります。");
                 return true;
             }
-            
+
             Player player = (Player) sender;
             if (!player.hasPermission("runhole.use")) {
                 player.sendMessage("このコマンドを実行する権限がありません。");
                 return true;
             }
-            
+
             targets.add(player);
         } else {
             // ターゲット指定あり：セレクタまたはプレイヤー名
             String targetArg = args[1];
-            
+
             // 他人を操作する場合はadmin権限が必要
             if (sender instanceof Player) {
                 Player player = (Player) sender;
@@ -64,7 +64,7 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
             }
-            
+
             // セレクタの場合
             if (targetArg.startsWith("@")) {
                 try {
@@ -74,7 +74,7 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
                             targets.add((Player) entity);
                         }
                     }
-                    
+
                     if (targets.isEmpty()) {
                         sender.sendMessage("セレクタ " + targetArg + " に一致するプレイヤーが見つかりませんでした。");
                         return true;
@@ -109,11 +109,11 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
         // 結果メッセージ
         if (successCount > 0) {
             if (targets.size() == 1) {
-                sender.sendMessage(targets.get(0).getName() + "のゲームを" + 
-                    (subCommand.equals("start") ? "開始" : "終了") + "しました。");
+                sender.sendMessage(targets.get(0).getName() + "のゲームを" +
+                        (subCommand.equals("start") ? "開始" : "終了") + "しました。");
             } else {
-                sender.sendMessage(successCount + "人のプレイヤーのゲームを" + 
-                    (subCommand.equals("start") ? "開始" : "終了") + "しました。");
+                sender.sendMessage(successCount + "人のプレイヤーのゲームを" +
+                        (subCommand.equals("start") ? "開始" : "終了") + "しました。");
             }
         }
 
@@ -135,7 +135,7 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
         } else if (args.length == 2 && sender.hasPermission("runhole.admin")) {
             // 第2引数のTab補完: プレイヤー名とセレクタ
             String partial = args[1].toLowerCase();
-            
+
             // セレクタの補完
             List<String> selectors = Arrays.asList("@a", "@p", "@r", "@s");
             for (String selector : selectors) {
@@ -143,7 +143,7 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
                     completions.add(selector);
                 }
             }
-            
+
             // プレイヤー名の補完
             for (Player player : Bukkit.getOnlinePlayers()) {
                 String name = player.getName();

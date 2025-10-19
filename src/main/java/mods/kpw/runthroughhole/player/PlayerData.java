@@ -19,14 +19,14 @@ public class PlayerData {
     public int lastCommandTick; // 最後にコマンドを実行したtick
     public boolean isGameOver; // ゲームオーバー処理中かどうか
     public GameMode originalGameMode; // ゲーム開始時のゲームモード
-    
+
     // 位置管理
     public Location initialLocation; // ゲーム開始時の初期位置（不変）
     public int lastMoveTick; // 最後に移動したtick
-    
+
     // 加速機能
     public boolean isSpacePressed; // Spaceキーが押されているかどうか
-    
+
     // 視線追従機能
     public float currentTargetYaw; // 現在追従している目標Yaw
     public float currentTargetPitch; // 現在追従している目標Pitch
@@ -40,10 +40,9 @@ public class PlayerData {
         this.lastMoveTick = 0;
         this.isGameOver = false;
         this.isSpacePressed = false;
-        
+
         // 視線追従の初期値（デフォルトは前方を向く）
         this.currentTargetYaw = 0.0f;
         this.currentTargetPitch = 0.0f;
     }
 }
-
