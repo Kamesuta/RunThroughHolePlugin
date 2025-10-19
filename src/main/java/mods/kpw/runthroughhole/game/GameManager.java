@@ -4,7 +4,6 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -132,7 +131,7 @@ public class GameManager {
         playerData.camera.setup(player);
 
         // プレビュー表示を作成
-        playerData.preview = new HolePreview(player.getWorld());
+        playerData.preview = new HolePreview(player.getWorld(), player);
 
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);
@@ -246,7 +245,7 @@ public class GameManager {
                     player.getWorld().createExplosion(blockLoc, 0.0f, false, false);
 
                     // 爆発音
-                    player.getWorld().playSound(blockLoc, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.0f);
+                    GameSound.GAME_OVER_EXPLOSION.play(player);
                 }
             }
         }

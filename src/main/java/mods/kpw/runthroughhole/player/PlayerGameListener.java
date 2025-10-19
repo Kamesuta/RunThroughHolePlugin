@@ -10,7 +10,6 @@ import com.comphenix.protocol.events.PacketEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -20,6 +19,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import mods.kpw.runthroughhole.Main;
+import mods.kpw.runthroughhole.game.GameSound;
 import mods.kpw.runthroughhole.game.PlayerCube;
 
 import java.time.Duration;
@@ -156,10 +156,10 @@ public class PlayerGameListener implements Listener {
 
         // キューブに回転を適用
         boolean rotationSuccess = data.cube.applyRotation(newRotation);
-        
+
         // 回転が成功した場合のみ効果音を再生
         if (rotationSuccess) {
-            data.player.playSound(data.player.getLocation(), Sound.ENTITY_SNIFFER_DROP_SEED, 1.0f, 1.0f);
+            GameSound.ROTATION.play(data.player);
         }
         
         // クールダウンタイムスタンプを更新
@@ -220,7 +220,7 @@ public class PlayerGameListener implements Listener {
             // プレビューパネルが緑でSpaceキーが押された場合、連続加速を開始
             Boolean isGreen = playerData.preview.isPreviewGreen();
             if (isGreen != null && isGreen) {
-                playerData.player.playSound(playerData.player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.0f, 1.0f);
+                GameSound.CONTINUOUS_BOOST_START.play(playerData.player);
                 playerData.cube.startContinuousBoosting();
             }
             // ジャンプキーが押された場合、加速開始
@@ -228,7 +228,7 @@ public class PlayerGameListener implements Listener {
 
             // 加速開始時の効果音を再生（Spaceキーが押された瞬間のみ）
             if (wasNotBoosting) {
-                playerData.player.playSound(playerData.player.getLocation(), Sound.ENTITY_GHAST_SHOOT, 1.0f, 1.0f);
+                GameSound.BOOST_START.play(playerData.player);
             }
         } else {
             // 連続加速モードじゃない場合、ジャンプキーを離したら加速停止
@@ -265,10 +265,10 @@ public class PlayerGameListener implements Listener {
 
             // キューブに移動を適用
             boolean moveSuccess = playerData.cube.move(gridMove);
-            
+
             // 移動が成功した場合のみ効果音を再生
             if (moveSuccess) {
-                playerData.player.playSound(playerData.player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+                GameSound.MOVE.play(playerData.player);
                 playerData.lastMoveTick = currentTick;
             }
             // 移動が失敗した場合は何もしない

@@ -3,9 +3,9 @@ package mods.kpw.runthroughhole.game;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.Player;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
  */
 public class HolePreview {
     private World world;
+    private Player player;
     private HoleState holeState; // 穴通過状態管理
 
     // 位置をキーとしてパネルを管理（差分更新用）
@@ -39,8 +40,9 @@ public class HolePreview {
     // 壁を探索する長さ
     private static final int WALL_SEARCH_LENGTH = 100;
 
-    public HolePreview(World world) {
+    public HolePreview(World world, Player player) {
         this.world = world;
+        this.player = player;
         this.holeState = new HoleState();
         this.previewPanelMap = new HashMap<>();
         this.wallHoles = new HashMap<>();
@@ -178,7 +180,7 @@ public class HolePreview {
                     completedWalls.add(wallZ);
 
                     // 完了音を鳴らす
-                    world.playSound(cube.getCurrentLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 2.0f);
+                    GameSound.HOLE_COMPLETE.play(player);
                 }
 
                 // データは残しておく（壁通過まで保持）
@@ -261,7 +263,7 @@ public class HolePreview {
 
     /**
      * 穴をなぞった瞬間のエフェクトを表示
-     * 
+     *
      * @param location 穴の位置
      */
     private void showTraceEffect(Location location) {
@@ -271,7 +273,7 @@ public class HolePreview {
         world.spawnParticle(Particle.END_ROD, particleLoc, 2, 0.15, 0.15, 0.15, 0.05);
 
         // パリンという音
-        world.playSound(particleLoc, Sound.BLOCK_GLASS_BREAK, 0.3f, 1.8f);
+        GameSound.HOLE_TRACE.play(player);
     }
 
     /**
