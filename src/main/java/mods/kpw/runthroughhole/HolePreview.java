@@ -167,7 +167,11 @@ public class HolePreview {
                     // 初めてなぞった場合のみパーティクルを表示
                     if (!currentlyTracedHoles.contains(holeKey)) {
                         currentlyTracedHoles.add(holeKey);
-                        showTraceEffect(worldPos);
+
+                        // プレイヤーキューブの少し手前にエフェクトを出す
+                        Location effectLocation = worldPos.toCenterLocation();
+                        effectLocation.setZ(cube.getCurrentLocation().getBlockZ() + 1);
+                        showTraceEffect(effectLocation);
                     }
                 });
             
