@@ -10,6 +10,8 @@ import org.bukkit.util.Transformation;
 import org.joml.Vector2i;
 import org.joml.Vector3f;
 
+import mods.kpw.runthroughhole.Main;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -79,50 +81,30 @@ public class HolePreview {
             return;
         }
 
-        // 壁が変わった場合はクリア
-        if (!tracingManager.isCurrentWall(wallZ)) {
-            tracingManager.clear();
-        }
-
         // まず、キューブの全ブロックが壁を通れるかチェック
         boolean canPassThrough = cube.getCubeWallPositions(wallLocation)
                 .allMatch(worldPos -> {
                     Material material = world.getBlockAt(worldPos).getType();
                     return PlayerCube.isAir(material);
                 });
+        // 現在の状態を記録
+        lastCanPassThrough = canPassThrough;
 
         // パネルの色を決定（通れるなら緑、通れないなら白）
         Material panelMaterial = canPassThrough ? Material.LIME_STAINED_GLASS : Material.WHITE_STAINED_GLASS;
 
-        // 穴から出たことを検出
-        if (holeState.hasHoleStateChanged() && !holeState.isInHole()) {
-            // 穴の中にいた → 穴から出た
-            // なぞり状態をリセット（再挑戦可能にする）
-            tracingManager.reset();
-        }
-
-        // 白→緑の変化を検出（通れない→通れるに変わった）
-        if (lastCanPassThrough != null && !lastCanPassThrough && canPassThrough) {
-            // 白から緑に変わった → なぞり直しなのでリセット
-            tracingManager.reset();
-        }
-
-        // 現在の状態を記録
-        lastCanPassThrough = canPassThrough;
-
-        // この壁の穴位置を記録（初回のみ）
-        // 壁の穴は固定位置なので、キューブの回転に関係なく、壁の5x5範囲をチェック
+        // 壁が変わった場合はクリア
         if (!tracingManager.isCurrentWall(wallZ)) {
-            Location wallCenter = wallLocation.clone();
-            Set<Vector2i> holes = cube.getWallBlocks(wallCenter)
-                    .filter(checkLoc -> PlayerCube.isAir(world.getBlockAt(checkLoc).getType()))
-                    .map(checkLoc -> new Vector2i(checkLoc.getBlockX(), checkLoc.getBlockY()))
-                    .collect(Collectors.toSet());
-
-            if (!holes.isEmpty()) {
-                tracingManager.setCurrentWall(wallZ, holes);
-            }
+            tracingManager.setCurrentWall(wallZ);
         }
+
+        // 壁の穴は固定位置なので、キューブの回転に関係なく、壁の5x5範囲をチェック
+        // この壁の穴位置を記録
+        Set<Vector2i> holes = cube.getWallBlocks(wallLocation)
+                .filter(checkLoc -> PlayerCube.isAir(world.getBlockAt(checkLoc).getType()))
+                .map(checkLoc -> new Vector2i(checkLoc.getBlockX(), checkLoc.getBlockY()))
+                .collect(Collectors.toSet());
+        tracingManager.addHoles(holes);
 
         // なぞり判定（HolePreviewが行う）
         // ★重要：緑（通れる）の時だけなぞり判定を行う
@@ -254,7 +236,7 @@ public class HolePreview {
         previewPanelMap.clear();
 
         // 壁の追跡データもクリア
-        tracingManager.clear();
+        tracingManager.setCurrentWall(0);
         lastCanPassThrough = null;
     }
 

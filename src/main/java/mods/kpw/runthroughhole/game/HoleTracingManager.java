@@ -36,12 +36,20 @@ public class HoleTracingManager {
      * 現在の壁を設定
      *
      * @param wallZ 壁のZ座標
-     * @param holes 壁の全穴位置（2次元座標）
      */
-    public void setCurrentWall(int wallZ, Set<Vector2i> holes) {
-        this.currentWallZ = wallZ;
-        this.allHoles = new HashSet<>(holes);
-        this.tracedHoles = new HashSet<>();
+    public void setCurrentWall(int wallZ) {
+        currentWallZ = wallZ;
+        allHoles.clear();
+        tracedHoles.clear();
+    }
+
+    /**
+     * 現在の壁に穴を追加
+     *
+     * @param holes 追加する穴の位置（2次元座標）
+     */
+    public void addHoles(Set<Vector2i> holes) {
+        allHoles.addAll(holes);
     }
 
     /**
@@ -91,21 +99,5 @@ public class HoleTracingManager {
      */
     public Set<Vector2i> getTracedHoles() {
         return Collections.unmodifiableSet(tracedHoles);
-    }
-
-    /**
-     * 現在の壁のなぞり状態をリセット（再挑戦用）
-     */
-    public void reset() {
-        tracedHoles.clear();
-    }
-
-    /**
-     * すべての状態をクリア
-     */
-    public void clear() {
-        currentWallZ = null;
-        allHoles.clear();
-        tracedHoles.clear();
     }
 }

@@ -419,8 +419,10 @@ public class PlayerCube {
      * @param cubeLocation 中心位置 (baseLocationやwallLocation)
      * @return 有効なブロックの世界座標LocationのStream
      */
-    public Stream<Location> getCubeWorldPositions(Location cubeLocation) {
-        return getCubeOffsets().map(offset -> cubeLocation.toBlockLocation()
+    public Stream<Location> getCubeWorldPositions() {
+        Location currentLocation = getCurrentLocation();
+
+        return getCubeOffsets().map(offset -> currentLocation.toBlockLocation()
                 .add(Math.round(offset.x), Math.round(offset.y), Math.round(offset.z)));
     }
 
@@ -431,10 +433,13 @@ public class PlayerCube {
      * @return 有効なブロックの世界座標LocationのStream
      */
     public Stream<Location> getCubeWallPositions(Location wallLocation) {
+        Location currentWallLocation = getCurrentLocation().toBlockLocation();
+        currentWallLocation.setZ(wallLocation.getBlockZ());
+
         return getCubeOffsets()
                 .map(offset -> new Vector2i(Math.round(offset.x), Math.round(offset.y)))
                 .distinct()
-                .map(offset -> wallLocation.toBlockLocation().clone().add(offset.x, offset.y, 0));
+                .map(offset -> currentWallLocation.clone().add(offset.x, offset.y, 0));
     }
 
     /**
