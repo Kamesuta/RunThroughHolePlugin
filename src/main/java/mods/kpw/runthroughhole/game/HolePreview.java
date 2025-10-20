@@ -77,7 +77,17 @@ public class HolePreview {
 
         // 通過中かチェック
         if (holeState.isInHole()) {
-            // 通過中はプレビュー処理を停止（パネルは表示したまま）
+            // 穴に入った瞬間
+            if (holeState.hasHoleStateChanged()) {
+                // 音を鳴らす
+                GameSound.HOLE_ENTER.play(player);
+                // 穴の位置にパーティクルエフェクトを表示
+                cube.getCubeWallPositions(wallLocation).forEach(worldPos ->
+                    world.spawnParticle(Particle.END_ROD, worldPos.toCenterLocation(), 2, 0, 0, 0, 0.05));
+                // プレビューを消す
+                clear();
+            }
+            // 通過中はプレビュー処理を停止
             return;
         }
 
@@ -110,28 +120,20 @@ public class HolePreview {
         // ★重要：緑（通れる）の時だけなぞり判定を行う
         if (canPassThrough && !tracingManager.isCompleted()) {
             Set<Vector2i> allHoles = tracingManager.getAllHoles();
-            Set<Vector2i> tracedHoles = tracingManager.getTracedHoles();
 
             // キューブの投影位置を取得（壁上の2次元座標）
             Set<Vector2i> cubePositions = cube.getCubeWallPositions(wallLocation)
                     .map(worldPos -> new Vector2i(worldPos.getBlockX(), worldPos.getBlockY()))
                     .collect(Collectors.toSet());
-
-            // ★重要：全穴とキューブ位置の共通部分のみ
-            allHoles.stream()
-                    .filter(cubePositions::contains)
-                    .filter(hole -> !tracedHoles.contains(hole))
-                    .forEach(hole -> {
-                        tracingManager.markHoleTraced(hole);
-
-                        // エフェクト表示（初めてなぞった時のみ）
-                        Location effectLocation = new Location(world, hole.x, hole.y, wallZ).toCenterLocation();
-                        effectLocation.setZ(cube.getCurrentLocation().getBlockZ() + 1);
-                        showTraceEffect(effectLocation);
-                    });
+            tracingManager.markHoleTraced(cubePositions);
 
             // 完了判定もHolePreviewが行う
             if (tracingManager.isCompleted()) {
+                // 完了時のエフェクトを表示
+                int cubeZ = cube.getCurrentLocation().getBlockZ();
+                allHoles.forEach(hole ->
+                    world.spawnParticle(Particle.HAPPY_VILLAGER, new Location(world, hole.x, hole.y, cubeZ + 1).toCenterLocation(), 1, 0, 0, 0, 0));
+
                 // 完了音を鳴らす
                 GameSound.HOLE_COMPLETE.play(player);
             }
@@ -212,21 +214,6 @@ public class HolePreview {
     }
 
     /**
-     * 穴をなぞった瞬間のエフェクトを表示
-     *
-     * @param location 穴の位置
-     */
-    private void showTraceEffect(Location location) {
-        // パーティクルエフェクト（キラキラ）
-        Location particleLoc = location.toCenterLocation();
-        world.spawnParticle(Particle.HAPPY_VILLAGER, particleLoc, 3, 0.2, 0.2, 0.2, 0);
-        world.spawnParticle(Particle.END_ROD, particleLoc, 2, 0.15, 0.15, 0.15, 0.05);
-
-        // パリンという音
-        GameSound.HOLE_TRACE.play(player);
-    }
-
-    /**
      * プレビューをクリア
      */
     public void clear() {
@@ -235,8 +222,7 @@ public class HolePreview {
         }
         previewPanelMap.clear();
 
-        // 壁の追跡データもクリア
-        tracingManager.setCurrentWall(0);
+        // 通過可否状態をクリア
         lastCanPassThrough = null;
     }
 

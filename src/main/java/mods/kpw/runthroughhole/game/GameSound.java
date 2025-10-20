@@ -19,8 +19,8 @@ public enum GameSound {
     /** 連続加速開始時（プレビュー緑でSpace押下） */
     CONTINUOUS_BOOST_START(Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.0f, 1.0f),
 
-    /** 穴をなぞった時 */
-    HOLE_TRACE(Sound.BLOCK_GLASS_BREAK, 0.3f, 1.8f),
+    /** 穴をくぐっているとき */
+    HOLE_ENTER(Sound.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE, 1.0f, 1.0f),
 
     /** 穴を完全になぞり終えた時 */
     HOLE_COMPLETE(Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 2.0f),

@@ -65,10 +65,10 @@ public class HoleTracingManager {
     /**
      * 穴をなぞったとマーク
      *
-     * @param holePos 穴の位置（壁上の2次元座標）
+     * @param holes 穴の位置（壁上の2次元座標）
      */
-    public void markHoleTraced(Vector2i holePos) {
-        tracedHoles.add(holePos);
+    public void markHoleTraced(Set<Vector2i> holes) {
+        tracedHoles.addAll(holes);
     }
 
     /**
