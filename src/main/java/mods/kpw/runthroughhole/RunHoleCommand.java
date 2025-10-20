@@ -1,12 +1,15 @@
 package mods.kpw.runthroughhole;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.util.RayTraceResult;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -228,8 +231,14 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
             String subCommand = args[0].toLowerCase();
 
             if (subCommand.equals("start")) {
-                // startコマンドの第2引数: パターン（例を提示）
-                completions.add("000000000000001000000000000");  // 中心1ブロック
+                // startコマンドの第2引数: パターン（プレイヤーの視線先から生成）
+                if (sender instanceof Player) {
+                    Player player = (Player) sender;
+                    String pattern = generatePatternFromTargetBlock(player);
+                    if (pattern != null) {
+                        completions.add(pattern);
+                    }
+                }
             } else if (subCommand.equals("stop")) {
                 // stopコマンドの第2引数: プレイヤー名とセレクタ
                 addPlayerCompletions(completions, args[1], sender);
@@ -244,6 +253,50 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
         }
 
         return completions;
+    }
+
+    /**
+     * プレイヤーの視線先のブロックを中心に3x3x3範囲のガラスブロックからパターンを生成
+     *
+     * @param player プレイヤー
+     * @return 27桁の01文字列、視線先にブロックがない場合はnull
+     */
+    private String generatePatternFromTargetBlock(Player player) {
+        // プレイヤーの視線先のブロックを取得（最大100ブロック先まで）
+        RayTraceResult rayTrace = player.rayTraceBlocks(100.0);
+        if (rayTrace == null || rayTrace.getHitBlock() == null) {
+            return null;
+        }
+
+        Block centerBlock = rayTrace.getHitBlock();
+        int centerX = centerBlock.getX();
+        int centerY = centerBlock.getY();
+        int centerZ = centerBlock.getZ();
+
+        // 3x3x3範囲のガラスブロックを検出
+        StringBuilder pattern = new StringBuilder();
+
+        // X→Y→Zの順序でスキャン
+        for (int z = -1; z <= 1; z++) {
+            for (int y = -1; y <= 1; y++) {
+                for (int x = -1; x <= 1; x++) {
+                    Block block = player.getWorld().getBlockAt(
+                        centerX + x,
+                        centerY + y,
+                        centerZ + z
+                    );
+
+                    // ガラスブロックの場合は'1'、それ以外は'0'
+                    if (block.getType() == Material.GLASS) {
+                        pattern.append('1');
+                    } else {
+                        pattern.append('0');
+                    }
+                }
+            }
+        }
+
+        return pattern.toString();
     }
 
     /**
