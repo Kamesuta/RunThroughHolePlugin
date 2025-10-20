@@ -97,10 +97,11 @@ public class GameManager {
 
     /**
      * ゲーム開始処理
-     * 
+     *
      * @param player プレイヤー
+     * @param pattern ブロックパターン（3x3x3の配列）
      */
-    public void startGame(Player player) {
+    public void startGame(Player player, boolean[][][] pattern) {
         if (playerDataManager.hasPlayerData(player)) {
             player.sendMessage("すでにゲーム中です。");
             return;
@@ -124,7 +125,7 @@ public class GameManager {
         player.setGameMode(GameMode.ADVENTURE);
 
         // キャラのキューブを作成
-        playerData.cube = new PlayerCube(player.getWorld(), baseLocation.clone());
+        playerData.cube = new PlayerCube(player.getWorld(), baseLocation.clone(), pattern);
 
         // カメラを作成してセットアップ
         playerData.camera = new CubeCamera(player.getWorld(), baseLocation.clone(), playerData.cube);

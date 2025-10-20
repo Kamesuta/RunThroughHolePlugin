@@ -68,20 +68,25 @@ public class PlayerCube {
         return forwardProgress;
     }
 
-    public PlayerCube(World world, Location baseLocation) {
+    public PlayerCube(World world, Location baseLocation, boolean[][][] pattern) {
+        if (pattern == null || pattern.length != 3 || pattern[0].length != 3 || pattern[0][0].length != 3) {
+            throw new IllegalArgumentException("パターンは3x3x3の配列である必要があります");
+        }
+
         this.world = world;
         this.baseLocation = baseLocation;
         this.gridPosition = new Vector3f(0, 0, 0);
         this.blocks = new ArrayList<>();
         this.rotation = new Quaternionf();
 
-        // デフォルトでテトリミノ風のブロックを配置
-        blockShape[1][0][0] = true;
-        blockShape[1][0][1] = true;
-        blockShape[0][1][1] = true;
-        blockShape[1][1][1] = true;
-        blockShape[2][1][1] = true;
-        blockShape[2][2][1] = true;
+        // パターンを設定
+        for (int x = 0; x < 3; x++) {
+            for (int y = 0; y < 3; y++) {
+                for (int z = 0; z < 3; z++) {
+                    blockShape[x][y][z] = pattern[x][y][z];
+                }
+            }
+        }
 
         // 蜂エンティティを初期化
         initializeEntity();
