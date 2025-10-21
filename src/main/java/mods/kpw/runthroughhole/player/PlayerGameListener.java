@@ -370,7 +370,7 @@ public class PlayerGameListener implements Listener {
             Title title = Title.title(
                     Component.empty(),
                     Component.text(currentGuide),
-                    Title.Times.times(Duration.ofMillis(0), Duration.ofDays(1), Duration.ofMillis(0)));
+                    Title.Times.times(Duration.ofMillis(0), Duration.ofSeconds(5), Duration.ofSeconds(1)));
             playerData.player.showTitle(title);
             playerData.currentGuide = currentGuide;
         } else if (currentGuide == null && playerData.currentGuide != null) {
@@ -378,7 +378,7 @@ public class PlayerGameListener implements Listener {
             Title title = Title.title(
                     Component.empty(),
                     Component.empty(),
-                    Title.Times.times(Duration.ofMillis(0), Duration.ofMillis(0), Duration.ofMillis(0)));
+                    Title.Times.times(Duration.ofMillis(0), Duration.ofMillis(0), Duration.ofSeconds(1)));
             playerData.player.showTitle(title);
             playerData.currentGuide = null;
         }
