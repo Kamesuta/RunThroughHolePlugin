@@ -15,6 +15,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -164,6 +165,17 @@ public class PlayerGameListener implements Listener {
         
         // クールダウンタイムスタンプを更新
         data.lastCommandTick = plugin.getServer().getCurrentTick();
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        PlayerData data = plugin.getPlayerDataManager().getPlayerData(player);
+
+        // ゲーム中のプレイヤーの場合、ゲームオーバー処理を実行
+        if (data != null && data.cube != null && !data.isGameOver) {
+            plugin.getGameManager().gameOver(data, "ログアウトによりゲームを終了します", null);
+        }
     }
 
     @EventHandler
