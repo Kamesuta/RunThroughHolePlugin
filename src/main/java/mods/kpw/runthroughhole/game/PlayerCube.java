@@ -70,10 +70,21 @@ public class PlayerCube {
     // 減速タイマー（壁に近づいたときの停止処理用）
     private static final int SLOW_TIMEOUT_TICKS = 40; // 2秒 = 40tick
     private int slowdownTicks = 0; // 減速している時間（tick単位）
-    private boolean isSlowedDown = false; // 減速中かどうか
+    
+    // 穴通過状態管理
+    private HoleState holeState;
 
     public float getForwardProgress() {
         return forwardProgress;
+    }
+
+    /**
+     * 穴通過状態を取得
+     *
+     * @return 穴通過状態
+     */
+    public HoleState getHoleState() {
+        return holeState;
     }
 
     public PlayerCube(World world, Location baseLocation, boolean[][][] pattern) {
@@ -86,6 +97,7 @@ public class PlayerCube {
         this.gridPosition = new Vector3f(0, 0, 0);
         this.blocks = new ArrayList<>();
         this.rotation = new Quaternionf();
+        this.holeState = new HoleState();
 
         // パターンを設定
         for (int x = 0; x < 3; x++) {
@@ -203,12 +215,8 @@ public class PlayerCube {
         if (distanceToWall < 0.0) {
             // 通れる壁の場合は通常速度（減速なし）
             currentSpeed = isBoosting ? BOOST_SPEED : FORWARD_SPEED;
-            // 減速タイマーをリセット
-            isSlowedDown = false;
             slowdownTicks = 0;
         } else if (distanceToWall >= 0 && distanceToWall <= 3.0) {
-            // 3ブロック以内の通れない壁 → 減速
-            isSlowedDown = true;
             slowdownTicks++;
 
             // 2秒（40tick）経過したら減速解除
@@ -234,8 +242,6 @@ public class PlayerCube {
         } else {
             // 壁が遠い or 壁がない → 通常速度
             currentSpeed = isBoosting ? BOOST_SPEED : FORWARD_SPEED;
-            // 減速タイマーをリセット
-            isSlowedDown = false;
             slowdownTicks = 0;
         }
 

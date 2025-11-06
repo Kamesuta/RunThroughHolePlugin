@@ -191,8 +191,8 @@ public class GameManager {
         // プレビュー表示を作成
         playerData.preview = new HolePreview(player.getWorld(), player, playerData.tracingManager);
 
-        // キューブプレビュー表示を作成（HolePreviewと同じHoleStateを共有）
-        playerData.cubePreview = new CubePreview(player.getWorld(), playerData.cube, baseLocation.clone(), plugin, playerData.preview);
+        // キューブプレビュー表示を作成（PlayerCubeのHoleStateを使用）
+        playerData.cubePreview = new CubePreview(player.getWorld(), playerData.cube, baseLocation.clone(), plugin);
 
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);

@@ -31,9 +31,6 @@ public class CubePreview {
     // キューブからの距離（手前に表示する距離、ブロック単位）
     private static final float PREVIEW_Z_OFFSET = -3.0f;
 
-    // 穴通過状態管理
-    private HoleState holeState;
-
     // エンティティの高さオフセット（PlayerCubeから取得）
     private double entityHeightOffset = 0.0;
 
@@ -45,14 +42,12 @@ public class CubePreview {
     private BukkitTask shrinkTask = null; // 縮小アニメーション開始タスク
     private BukkitTask clearTask = null; // クリア実行タスク
 
-    public CubePreview(World world, PlayerCube cube, Location baseLocation, JavaPlugin plugin, HolePreview holePreview) {
+    public CubePreview(World world, PlayerCube cube, Location baseLocation, JavaPlugin plugin) {
         this.world = world;
         this.cube = cube;
         this.baseLocation = baseLocation;
         this.plugin = plugin;
         this.displayMap = new HashMap<>();
-        // HolePreviewと同じHoleStateを共有
-        this.holeState = holePreview.getHoleState();
 
         // PlayerCubeの蜂から高さオフセットを取得
         if (cube.getEntity() != null) {
@@ -67,7 +62,8 @@ public class CubePreview {
      */
     public void update(HoleTracingManager tracingManager) {
         // 穴に入った場合はプレビューを消す
-        // ※HoleStateはHolePreviewと共有しており、HolePreviewが更新する
+        // ※HoleStateはPlayerCubeが管理しており、HolePreviewが更新する
+        HoleState holeState = cube.getHoleState();
         if (holeState.isInHole()) {
             // プレビューをクリア
             clear();

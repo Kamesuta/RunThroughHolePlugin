@@ -10,8 +10,6 @@ import org.bukkit.util.Transformation;
 import org.joml.Vector2i;
 import org.joml.Vector3f;
 
-import mods.kpw.runthroughhole.Main;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -24,7 +22,6 @@ import java.util.stream.Collectors;
 public class HolePreview {
     private World world;
     private Player player;
-    private HoleState holeState; // 穴通過状態管理
 
     // 位置をキーとしてパネルを管理（差分更新用）
     private Map<String, BlockDisplay> previewPanelMap;
@@ -41,7 +38,6 @@ public class HolePreview {
     public HolePreview(World world, Player player, HoleTracingManager tracingManager) {
         this.world = world;
         this.player = player;
-        this.holeState = new HoleState();
         this.previewPanelMap = new HashMap<>();
         this.tracingManager = tracingManager;
     }
@@ -73,6 +69,7 @@ public class HolePreview {
         Location holeLocation = cube.detectHole();
 
         // 穴通過状態を更新（キューブのZ座標を使用）
+        HoleState holeState = cube.getHoleState();
         holeState.updateHoleStatus(holeLocation, currentLocation.getZ());
 
         // 通過中かチェック
@@ -233,15 +230,6 @@ public class HolePreview {
      */
     public Boolean isPreviewGreen() {
         return lastCanPassThrough;
-    }
-
-    /**
-     * 穴通過状態を取得（CubePreviewと共有するため）
-     *
-     * @return 穴通過状態
-     */
-    public HoleState getHoleState() {
-        return holeState;
     }
 
     /**
