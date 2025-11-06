@@ -132,24 +132,62 @@ public class CubePreview {
             clearTask.cancel();
         }
 
-        // 0.5秒後にInterpolationを開始
+        // 1秒後にInterpolationを開始
         shrinkTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             // すべてのBlockDisplayにInterpolationを設定してサイズを0にする
-            for (BlockDisplay display : displayMap.values()) {
-                Transformation transformation = display.getTransformation();
-                // スケールを0にする
-                transformation.getScale().set(0f, 0f, 0f);
+            for (Map.Entry<Vector2i, BlockDisplay> entry : displayMap.entrySet()) {
+                Vector2i pos = entry.getKey();
+                BlockDisplay display = entry.getValue();
+
+                // スケール0のTransformationを作成（中心位置を維持）
+                Transformation transformation = createPanelTransformation(pos, 0f, 0f);
                 display.setTransformation(transformation);
+
                 // 0.5秒（10tick）かけてスケールを0にする
                 display.setInterpolationDuration(10);
                 display.setInterpolationDelay(0);
             }
-        }, 10L);
+        }, 20L);
 
-        // 1秒後（0.5秒待機 + 0.5秒アニメーション = 20tick後）にクリア
+        // 1.5秒後にクリア
         clearTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             clear();
-        }, 20L);
+        }, 30L);
+    }
+
+    /**
+     * プレビューパネル用のTransformationを作成
+     *
+     * @param pos 2次元位置（X, Y）
+     * @param xyDiameter XY方向の直径（スケール）
+     * @param zThickness Z方向の厚み（スケール）
+     * @return 作成されたTransformation
+     */
+    private Transformation createPanelTransformation(Vector2i pos, float xyDiameter, float zThickness) {
+        Transformation transformation = new Transformation(
+            new Vector3f(0, 0, 0),
+            new org.joml.Quaternionf(),
+            new Vector3f(1, 1, 1),
+            new org.joml.Quaternionf()
+        );
+
+        // スケールを設定（薄型パネル、Z方向が薄い）
+        transformation.getScale().set(xyDiameter, xyDiameter, zThickness);
+
+        // 位置を調整
+        // ブロックの中心は整数座標 + 0.5 なので、0.5を加える
+        // スケールに応じてオフセットを調整（中心を維持）
+        float relativeX = pos.x + 0.5f - (float) baseLocation.getX();
+        float relativeY = pos.y + 0.5f - (float) baseLocation.getY() + (float) (BLOCKDISPLAY_HEIGHT_OFFSET - entityHeightOffset);
+
+        // スケールの半分だけオフセット（中心を揃えるため）
+        Vector3f translation = new Vector3f(
+                relativeX - xyDiameter / 2,
+                relativeY - xyDiameter / 2,
+                PREVIEW_Z_OFFSET - zThickness / 2);
+        transformation.getTranslation().set(translation);
+
+        return transformation;
     }
 
     /**
@@ -165,26 +203,8 @@ public class CubePreview {
         display.setBlock(material.createBlockData());
         display.setBrightness(new BlockDisplay.Brightness(15, 15));
 
-        // Transformationを設定
-        Transformation transformation = display.getTransformation();
-
-        // スケールを設定（薄型パネル、Z方向が薄い）
-        Vector3f scale = new Vector3f(0.4f, 0.4f, 0.1f);
-        transformation.getScale().set(scale);
-
-        // 位置を調整
-        // X, Y: ワールド座標のブロック位置から baseLocation のオフセットを引く
-        // Z: PREVIEW_Z_OFFSETで後ろにオフセット
-        // ブロックの中心は整数座標 + 0.5 なので、0.5を加える
-        float relativeX = pos.x + 0.5f - (float) baseLocation.getX();
-        float relativeY = pos.y + 0.5f - (float) baseLocation.getY() + (float) (BLOCKDISPLAY_HEIGHT_OFFSET - entityHeightOffset);
-
-        Vector3f translation = new Vector3f(
-                relativeX - 0.2f,
-                relativeY - 0.2f,
-                PREVIEW_Z_OFFSET - 0.05f); // 後ろにオフセット + ブロックの中心（0.1スケールの中心）
-        transformation.getTranslation().set(translation);
-
+        // Transformationを設定（直径0.4、厚み0.1）
+        Transformation transformation = createPanelTransformation(pos, 0.4f, 0.1f);
         display.setTransformation(transformation);
 
         // Interpolationの設定（即座に表示してチラつきを防止）

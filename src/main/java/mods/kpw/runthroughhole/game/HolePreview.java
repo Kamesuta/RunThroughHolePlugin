@@ -132,7 +132,7 @@ public class HolePreview {
                 // 完了時のエフェクトを表示
                 int cubeZ = cube.getCurrentLocation().getBlockZ();
                 allHoles.forEach(hole ->
-                    world.spawnParticle(Particle.HAPPY_VILLAGER, new Location(world, hole.x, hole.y, cubeZ + 1).toCenterLocation(), 1, 0, 0, 0, 0));
+                    world.spawnParticle(Particle.HAPPY_VILLAGER, new Location(world, hole.x, hole.y, cubeZ - 3).toCenterLocation(), 1, 0, 0, 0, 0));
 
                 // 完了音を鳴らす
                 GameSound.HOLE_COMPLETE.play(player);
