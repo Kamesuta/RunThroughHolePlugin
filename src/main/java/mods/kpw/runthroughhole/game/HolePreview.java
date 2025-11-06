@@ -38,12 +38,12 @@ public class HolePreview {
     // 壁を探索する長さ
     private static final int WALL_SEARCH_LENGTH = 100;
 
-    public HolePreview(World world, Player player) {
+    public HolePreview(World world, Player player, HoleTracingManager tracingManager) {
         this.world = world;
         this.player = player;
         this.holeState = new HoleState();
         this.previewPanelMap = new HashMap<>();
-        this.tracingManager = new HoleTracingManager();
+        this.tracingManager = tracingManager;
     }
 
     /**

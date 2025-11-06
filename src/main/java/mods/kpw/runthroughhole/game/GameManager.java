@@ -69,6 +69,11 @@ public class GameManager {
                     if (data.preview != null && data.camera != null) {
                         data.preview.update(data.cube);
                     }
+
+                    // キューブプレビューを更新
+                    if (data.cubePreview != null && data.tracingManager != null) {
+                        data.cubePreview.update(data.tracingManager);
+                    }
                 }
             }
         }, 1L, 1L); // 1tick遅延、1tickごとに実行
@@ -131,8 +136,14 @@ public class GameManager {
         playerData.camera = new CubeCamera(player.getWorld(), baseLocation.clone(), playerData.cube);
         playerData.camera.setup(player);
 
+        // 穴なぞり管理を作成
+        playerData.tracingManager = new HoleTracingManager();
+
         // プレビュー表示を作成
-        playerData.preview = new HolePreview(player.getWorld(), player);
+        playerData.preview = new HolePreview(player.getWorld(), player, playerData.tracingManager);
+
+        // キューブプレビュー表示を作成
+        playerData.cubePreview = new CubePreview(player.getWorld(), playerData.cube, baseLocation.clone());
 
         // ホットバーのスロットを5番目（インデックス4）に設定
         player.getInventory().setHeldItemSlot(4);
@@ -187,6 +198,11 @@ public class GameManager {
         // プレビューをクリーンアップ
         if (playerData.preview != null) {
             playerData.preview.cleanup();
+        }
+
+        // キューブプレビューをクリーンアップ
+        if (playerData.cubePreview != null) {
+            playerData.cubePreview.cleanup();
         }
 
         // 左手（オフハンド）の石のボタンを削除

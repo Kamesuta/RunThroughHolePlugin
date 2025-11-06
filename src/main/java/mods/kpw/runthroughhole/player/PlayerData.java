@@ -7,12 +7,16 @@ import org.bukkit.entity.Player;
 import mods.kpw.runthroughhole.game.PlayerCube;
 import mods.kpw.runthroughhole.game.CubeCamera;
 import mods.kpw.runthroughhole.game.HolePreview;
+import mods.kpw.runthroughhole.game.CubePreview;
+import mods.kpw.runthroughhole.game.HoleTracingManager;
 
 public class PlayerData {
     public Player player; // プレイヤーオブジェクト
     public PlayerCube cube; // キャラのキューブ
     public CubeCamera camera; // カメラ
     public HolePreview preview; // 穴のプレビュー表示
+    public CubePreview cubePreview; // キューブの手前に表示するプレビュー
+    public HoleTracingManager tracingManager; // 穴なぞり管理
     public String currentGuide; // 現在表示中のガイド（null = 非表示）
     public boolean isYawOutside; // Yaw方向でGESTURE_THRESHOLD外にいるかどうか
     public boolean isPitchOutside; // Pitch方向でGESTURE_THRESHOLD外にいるかどうか

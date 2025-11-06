@@ -374,7 +374,7 @@ public class PlayerCube {
 
     /**
      * キューブの現在位置を取得（カメラ用）
-     * 
+     *
      * @return キューブの現在位置
      */
     public Location getCurrentLocation() {
@@ -382,6 +382,15 @@ public class PlayerCube {
                 .add(gridPosition)
                 .add(0, 0, forwardProgress);
         return Vector.fromJOML(currentPos).toLocation(world);
+    }
+
+    /**
+     * 蜂エンティティを取得（他のシステムがBlockDisplayをマウントするため）
+     *
+     * @return 蜂エンティティ
+     */
+    public LivingEntity getEntity() {
+        return entity;
     }
 
     // クリーンアップ
