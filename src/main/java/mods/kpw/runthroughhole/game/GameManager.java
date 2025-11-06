@@ -1,9 +1,12 @@
 package mods.kpw.runthroughhole.game;
 
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -74,9 +77,56 @@ public class GameManager {
                     if (data.cubePreview != null && data.tracingManager != null) {
                         data.cubePreview.update(data.tracingManager);
                     }
+
+                    // 壁接近警告をチェック
+                    updateWarningBossBar(data);
                 }
             }
         }, 1L, 1L); // 1tick遅延、1tickごとに実行
+    }
+
+    /**
+     * 壁接近警告ボスバーを更新
+     *
+     * @param data プレイヤーデータ
+     */
+    private void updateWarningBossBar(PlayerData data) {
+        Player player = data.player;
+        if (player == null || data.cube == null) {
+            return;
+        }
+
+        // 警告が必要かチェック
+        boolean shouldWarn = data.cube.shouldShowWarning();
+
+        if (shouldWarn) {
+            // ボスバーがまだない場合は作成
+            if (data.warningBossBar == null) {
+                data.warningBossBar = Bukkit.createBossBar(
+                        "§c§l⚠ 壁接近！ ⚠",
+                        BarColor.RED,
+                        BarStyle.SOLID);
+                data.warningBossBar.setProgress(0.0);
+                data.warningBossBar.addPlayer(player);
+            }
+
+            // 距離に応じてボスバーの進行度を更新
+            double distance = data.cube.getDistanceToNextWall();
+            if (distance >= 0) {
+                // 距離1.5ブロック → 0%、距離0.0ブロック → 100%
+                double progress = 1.0 - (distance / 1.5);
+                progress = Math.max(0.0, Math.min(1.0, progress)); // 0.0～1.0にクランプ
+                data.warningBossBar.setProgress(progress);
+            }
+
+            // ボスバーを表示
+            data.warningBossBar.setVisible(true);
+        } else {
+            // 警告不要の場合はボスバーを非表示
+            if (data.warningBossBar != null) {
+                data.warningBossBar.setVisible(false);
+            }
+        }
     }
 
     /**
@@ -209,6 +259,12 @@ public class GameManager {
         ItemStack offHandItem = player.getInventory().getItemInOffHand();
         if (offHandItem != null && offHandItem.getType() == Material.STONE_BUTTON) {
             player.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
+        }
+
+        // ボスバーをクリーンアップ
+        if (playerData.warningBossBar != null) {
+            playerData.warningBossBar.removeAll();
+            playerData.warningBossBar = null;
         }
 
         // 元のゲームモードに戻す

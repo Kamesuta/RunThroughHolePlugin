@@ -2,6 +2,7 @@ package mods.kpw.runthroughhole.player;
 
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 
 import mods.kpw.runthroughhole.game.PlayerCube;
@@ -17,6 +18,7 @@ public class PlayerData {
     public HolePreview preview; // 穴のプレビュー表示
     public CubePreview cubePreview; // キューブの手前に表示するプレビュー
     public HoleTracingManager tracingManager; // 穴なぞり管理
+    public BossBar warningBossBar; // 壁接近警告用ボスバー
     public String currentGuide; // 現在表示中のガイド（null = 非表示）
     public boolean isYawOutside; // Yaw方向でGESTURE_THRESHOLD外にいるかどうか
     public boolean isPitchOutside; // Pitch方向でGESTURE_THRESHOLD外にいるかどうか
