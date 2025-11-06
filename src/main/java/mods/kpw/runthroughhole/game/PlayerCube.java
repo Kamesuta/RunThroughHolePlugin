@@ -64,6 +64,11 @@ public class PlayerCube {
     private boolean isBoosting = false; // 加速中かどうか
     private boolean isContinuousBoosting = false; // 連続加速中かどうか
 
+    // 減速タイマー（壁に近づいたときの停止処理用）
+    private static final int SLOW_TIMEOUT_TICKS = 40; // 2秒 = 40tick
+    private int slowdownTicks = 0; // 減速している時間（tick単位）
+    private boolean isSlowedDown = false; // 減速中かどうか
+
     public float getForwardProgress() {
         return forwardProgress;
     }
@@ -186,8 +191,51 @@ public class PlayerCube {
 
     // 自動前進（毎tick呼び出される）- Z軸のテレポートのみ
     public void autoForward() {
-        // 加速中かどうかで速度を変更
-        float currentSpeed = isBoosting ? BOOST_SPEED : FORWARD_SPEED;
+        // 前方の壁との距離を取得
+        double distanceToWall = getDistanceToNextWall();
+
+        // 速度を決定
+        float currentSpeed;
+
+        if (distanceToWall < 0.0) {
+            // 通れる壁の場合は通常速度（減速なし）
+            currentSpeed = isBoosting ? BOOST_SPEED : FORWARD_SPEED;
+            // 減速タイマーをリセット
+            isSlowedDown = false;
+            slowdownTicks = 0;
+        } else if (distanceToWall >= 0 && distanceToWall <= 3.0) {
+            // 3ブロック以内の通れない壁 → 指数関数的減速
+            isSlowedDown = true;
+            slowdownTicks++;
+
+            // 2秒（40tick）経過したら減速解除
+            if (slowdownTicks >= SLOW_TIMEOUT_TICKS) {
+                currentSpeed = isBoosting ? BOOST_SPEED : FORWARD_SPEED;
+                // タイマーはリセットせず、カウントを継続（壁を抜けるまで）
+            } else {
+                // 線形減速: 距離に応じて一定割合で速度が落ちる
+                // distance=3.0で100%、distance=0.0で約3%の速度
+                // slowFactor = distance / 3.0
+                double slowFactor = distanceToWall / 3.0;
+
+                // 基本速度に減速係数を適用
+                float baseSpeed = isBoosting ? BOOST_SPEED : FORWARD_SPEED;
+                currentSpeed = (float) (baseSpeed * slowFactor);
+
+                // 最低速度を設定（完全に止まらないように）
+                float minSpeed = 0.01f;
+                if (currentSpeed < minSpeed) {
+                    currentSpeed = minSpeed;
+                }
+            }
+        } else {
+            // 壁が遠い or 壁がない → 通常速度
+            currentSpeed = isBoosting ? BOOST_SPEED : FORWARD_SPEED;
+            // 減速タイマーをリセット
+            isSlowedDown = false;
+            slowdownTicks = 0;
+        }
+
         forwardProgress += currentSpeed;
 
         // 1マス分進んだらグリッド位置を更新
@@ -514,7 +562,7 @@ public class PlayerCube {
 
     /**
      * 連続加速機能の処理
-     * 
+     *
      * @param preview プレビュー表示オブジェクト
      */
     public void handleContinuousBoosting(HolePreview preview) {
@@ -530,5 +578,70 @@ public class PlayerCube {
                 }
             }
         }
+    }
+
+    /**
+     * 次の壁との最短距離を取得（減速処理用）
+     *
+     * @return 壁との最短距離（壁が見つからない場合は-1、通れる壁の場合は-2）
+     */
+    public double getDistanceToNextWall() {
+        // 現在位置から前方5ブロック以内の壁を探索
+        Location currentLocation = getCurrentLocation();
+        double startZ = currentLocation.getZ();
+        double endZ = startZ + 5.0;
+
+        // 前方の壁を探索
+        Location wallLocation = findNextWall(startZ, endZ);
+
+        // 壁が見つからなければ-1を返す
+        if (wallLocation == null) {
+            return -1.0;
+        }
+
+        // 壁のZ座標
+        double wallZ = wallLocation.getBlockZ();
+
+        // キューブの全ブロックと壁の最短距離を計算
+        double minDistance = Double.MAX_VALUE;
+
+        for (CubeBlock block : blocks) {
+            // ブロックのローカルオフセットに回転を適用
+            Vector3f rotatedOffset = new Vector3f(block.offset);
+            rotatedOffset.rotate(rotation);
+
+            // ブロックのワールドZ座標を計算
+            double blockWorldZ = startZ + rotatedOffset.z;
+
+            // 壁との距離
+            double distance = wallZ - blockWorldZ;
+
+            // 最短距離を更新
+            if (distance < minDistance) {
+                minDistance = distance;
+            }
+        }
+
+        // 壁が通れるかチェック（キューブの形状が壁の穴と一致するか）
+        boolean canPassThrough = getCubeWallPositions(wallLocation)
+                .allMatch(location -> isAir(world.getBlockAt(location).getType()));
+
+        // 通れる壁の場合は-2を返す
+        if (canPassThrough) {
+            return -2.0;
+        }
+
+        return minDistance;
+    }
+
+    /**
+     * 壁接近警告が必要かどうかを判定
+     *
+     * @return 警告が必要な場合はtrue
+     */
+    public boolean shouldShowWarning() {
+        double distance = getDistanceToNextWall();
+        // 1.5ブロック以内 & 通れない壁の場合
+        return distance >= 0 && distance <= 1.5;
     }
 }
