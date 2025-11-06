@@ -20,6 +20,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import mods.kpw.runthroughhole.Main;
+import mods.kpw.runthroughhole.game.GameScoreTracker;
 import mods.kpw.runthroughhole.game.GameSound;
 import mods.kpw.runthroughhole.game.PlayerCube;
 
@@ -172,9 +173,9 @@ public class PlayerGameListener implements Listener {
         Player player = event.getPlayer();
         PlayerData data = plugin.getPlayerDataManager().getPlayerData(player);
 
-        // ゲーム中のプレイヤーの場合、ゲームオーバー処理を実行
+        // ゲーム中のプレイヤーの場合、ゲーム終了処理を実行
         if (data != null && data.cube != null && !data.isGameOver) {
-            plugin.getGameManager().gameOver(data, "ログアウトによりゲームを終了します", null);
+            plugin.getGameManager().stopGame(player, GameScoreTracker.END_TYPE_LOGOUT);
         }
     }
 
@@ -216,9 +217,9 @@ public class PlayerGameListener implements Listener {
     // WASD入力を処理
     private void handleWASDInput(PlayerData playerData, boolean left, boolean right, boolean forward, boolean backward,
             boolean jump, boolean shift) {
-        // Shiftキーが押された場合はゲームオーバー
+        // Shiftキーが押された場合はゲーム終了
         if (shift) {
-            plugin.getGameManager().gameOver(playerData, "スニークキーが押されたためゲームを中止します", null);
+            plugin.getGameManager().stopGame(playerData.player, GameScoreTracker.END_TYPE_PLAYER_QUIT);
             return;
         }
 

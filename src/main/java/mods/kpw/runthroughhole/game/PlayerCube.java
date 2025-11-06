@@ -39,6 +39,7 @@ public class PlayerCube {
 
     private Location baseLocation; // 基準位置（プレイヤーの固定位置）
     private World world;
+    private GameScoreTracker scoreTracker; // スコアトラッカー
 
     // 蜂エンティティ（最適化用）
     private LivingEntity entity;
@@ -87,7 +88,7 @@ public class PlayerCube {
         return holeState;
     }
 
-    public PlayerCube(World world, Location baseLocation, boolean[][][] pattern) {
+    public PlayerCube(World world, Location baseLocation, boolean[][][] pattern, GameScoreTracker scoreTracker) {
         if (pattern == null || pattern.length != 3 || pattern[0].length != 3 || pattern[0][0].length != 3) {
             throw new IllegalArgumentException("パターンは3x3x3の配列である必要があります");
         }
@@ -98,6 +99,7 @@ public class PlayerCube {
         this.blocks = new ArrayList<>();
         this.rotation = new Quaternionf();
         this.holeState = new HoleState();
+        this.scoreTracker = scoreTracker;
 
         // パターンを設定
         for (int x = 0; x < 3; x++) {
@@ -176,12 +178,14 @@ public class PlayerCube {
         this.gridPosition.add(delta);
         // XY移動はTransformationで更新（Zは触らない）
         updateTransformation();
+        scoreTracker.addScore(GameScoreTracker.OBJECTIVE_MOVE_COUNT, 1);
         return true; // 移動成功
     }
 
     // 加速状態を設定
     public void setBoosting(boolean boosting) {
         this.isBoosting = boosting;
+        scoreTracker.setScore(GameScoreTracker.OBJECTIVE_IS_BOOSTING, boosting ? 1 : 0);
     }
 
     public boolean isContinuousBoosting() {
@@ -192,7 +196,7 @@ public class PlayerCube {
         // 連続加速中の場合のみ開始
         if (!isContinuousBoosting) {
             this.isContinuousBoosting = true;
-            this.isBoosting = true;
+            setBoosting(true); // setBoostingを呼び出す
         }
     }
 
@@ -200,7 +204,7 @@ public class PlayerCube {
         // 連続加速中の場合のみ停止
         if (isContinuousBoosting) {
             this.isContinuousBoosting = false;
-            this.isBoosting = false;
+            setBoosting(false); // setBoostingを呼び出す
         }
     }
 
@@ -253,6 +257,18 @@ public class PlayerCube {
             forwardProgress -= 1.0f;
         }
 
+        // 壁通過検知（穴に入った瞬間を検知）
+        // detectHole()は現在位置の5x5範囲に穴があるかチェックする
+        Location holeLocation = detectHole();
+        Location currentLocation = getCurrentLocation();
+        holeState.updateHoleStatus(holeLocation, currentLocation.getZ());
+
+        // 穴に入った瞬間に壁通過イベントを発火
+        if (holeState.isInHole() && holeState.hasHoleStateChanged()) {
+            // 壁通過をスコアに記録
+            scoreTracker.addScore(GameScoreTracker.OBJECTIVE_WALLS_PASSED, 1);
+        }
+
         // Z位置のみテレポートで更新（毎tick）
         updateZPosition();
     }
@@ -282,6 +298,7 @@ public class PlayerCube {
         this.rotation = rotation;
 
         updateTransformation();
+        scoreTracker.addScore(GameScoreTracker.OBJECTIVE_ROTATION_COUNT, 1);
         return true; // 回転成功
     }
 

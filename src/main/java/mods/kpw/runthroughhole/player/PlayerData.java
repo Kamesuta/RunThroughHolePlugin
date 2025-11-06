@@ -10,6 +10,7 @@ import mods.kpw.runthroughhole.game.CubeCamera;
 import mods.kpw.runthroughhole.game.HolePreview;
 import mods.kpw.runthroughhole.game.CubePreview;
 import mods.kpw.runthroughhole.game.HoleTracingManager;
+import mods.kpw.runthroughhole.game.GameScoreTracker;
 
 public class PlayerData {
     public Player player; // プレイヤーオブジェクト
@@ -18,6 +19,7 @@ public class PlayerData {
     public HolePreview preview; // 穴のプレビュー表示
     public CubePreview cubePreview; // キューブの手前に表示するプレビュー
     public HoleTracingManager tracingManager; // 穴なぞり管理
+    public GameScoreTracker scoreTracker; // スコアボード管理
     public BossBar warningBossBar; // 壁接近警告用ボスバー
     public String currentGuide; // 現在表示中のガイド（null = 非表示）
     public boolean isYawOutside; // Yaw方向でGESTURE_THRESHOLD外にいるかどうか

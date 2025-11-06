@@ -35,11 +35,15 @@ public class HolePreview {
     // 壁を探索する長さ
     private static final int WALL_SEARCH_LENGTH = 100;
 
-    public HolePreview(World world, Player player, HoleTracingManager tracingManager) {
+    // スコアボード管理
+    private GameScoreTracker scoreTracker;
+
+    public HolePreview(World world, Player player, HoleTracingManager tracingManager, GameScoreTracker scoreTracker) {
         this.world = world;
         this.player = player;
         this.previewPanelMap = new HashMap<>();
         this.tracingManager = tracingManager;
+        this.scoreTracker = scoreTracker;
     }
 
     /**
@@ -65,12 +69,8 @@ public class HolePreview {
         // 壁のZ座標
         int wallZ = wallLocation.getBlockZ();
 
-        // 穴を検出
-        Location holeLocation = cube.detectHole();
-
-        // 穴通過状態を更新（キューブのZ座標を使用）
+        // 穴通過状態を取得（PlayerCubeで既に更新されている）
         HoleState holeState = cube.getHoleState();
-        holeState.updateHoleStatus(holeLocation, currentLocation.getZ());
 
         // 通過中かチェック
         if (holeState.isInHole()) {
@@ -122,7 +122,16 @@ public class HolePreview {
             Set<Vector2i> cubePositions = cube.getCubeWallPositions(wallLocation)
                     .map(worldPos -> new Vector2i(worldPos.getBlockX(), worldPos.getBlockY()))
                     .collect(Collectors.toSet());
+
+            int oldSize = tracingManager.getTracedHoles().size();
             tracingManager.markHoleTraced(cubePositions);
+
+            // スコアボードに記録
+            int newSize = tracingManager.getTracedHoles().size();
+            if (newSize > oldSize) {
+                // なぞった穴の数が増えた場合、スコアボードを更新
+                scoreTracker.addScore(GameScoreTracker.OBJECTIVE_HOLES_TRACED, newSize - oldSize);
+            }
 
             // 完了判定もHolePreviewが行う
             if (tracingManager.isCompleted()) {
@@ -133,6 +142,9 @@ public class HolePreview {
 
                 // 完了音を鳴らす
                 GameSound.HOLE_COMPLETE.play(player);
+
+                // スコアボードに完了を記録
+                scoreTracker.addScore(GameScoreTracker.OBJECTIVE_PERFECT_WALLS, 1);
             }
         }
 

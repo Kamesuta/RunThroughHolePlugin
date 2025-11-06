@@ -35,6 +35,9 @@ public class GameManager {
     public GameManager(JavaPlugin plugin, PlayerDataManager playerDataManager) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
+
+        // スコアボードのObjectiveを登録（プラグイン初期化時に1回だけ）
+        GameScoreTracker.registerObjectives();
     }
 
     /**
@@ -178,8 +181,12 @@ public class GameManager {
         // アドベンチャーモードに変更
         player.setGameMode(GameMode.ADVENTURE);
 
+        // スコアボード管理を作成して初期化
+        playerData.scoreTracker = new GameScoreTracker(player);
+        playerData.scoreTracker.initializeScores();
+
         // キャラのキューブを作成
-        playerData.cube = new PlayerCube(player.getWorld(), baseLocation.clone(), pattern);
+        playerData.cube = new PlayerCube(player.getWorld(), baseLocation.clone(), pattern, playerData.scoreTracker);
 
         // カメラを作成してセットアップ
         playerData.camera = new CubeCamera(player.getWorld(), baseLocation.clone(), playerData.cube);
@@ -189,7 +196,7 @@ public class GameManager {
         playerData.tracingManager = new HoleTracingManager();
 
         // プレビュー表示を作成
-        playerData.preview = new HolePreview(player.getWorld(), player, playerData.tracingManager);
+        playerData.preview = new HolePreview(player.getWorld(), player, playerData.tracingManager, playerData.scoreTracker);
 
         // キューブプレビュー表示を作成（PlayerCubeのHoleStateを使用）
         playerData.cubePreview = new CubePreview(player.getWorld(), playerData.cube, baseLocation.clone(), plugin);
@@ -225,13 +232,20 @@ public class GameManager {
      * ゲーム終了処理
      * 
      * @param player プレイヤー
+     * @param endType ゲーム終了タイプ (GameScoreTracker.END_TYPE_*)
      */
-    public void stopGame(Player player) {
+    public void stopGame(Player player, int endType) {
         PlayerData playerData = playerDataManager.removePlayerData(player);
 
         if (playerData == null) {
             player.sendMessage("ゲーム中ではありません。");
             return;
+        }
+
+        // スコアボードを更新
+        if (playerData.scoreTracker != null) {
+            playerData.scoreTracker.setScore(GameScoreTracker.OBJECTIVE_GAME_STATE, GameScoreTracker.GAME_STATE_GAME_END);
+            playerData.scoreTracker.setScore(GameScoreTracker.OBJECTIVE_END_TYPE, endType);
         }
 
         // カメラをクリーンアップ
@@ -351,7 +365,7 @@ public class GameManager {
 
         // 少し遅延してゲームを終了
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            stopGame(player);
+            stopGame(player, GameScoreTracker.END_TYPE_GAME_OVER);
         }, 60L); // 3秒後（60tick）
     }
 
@@ -361,8 +375,9 @@ public class GameManager {
     public void stopAllGames() {
         for (PlayerData playerData : playerDataManager.getAllPlayerData()) {
             if (playerData.player != null) {
-                stopGame(playerData.player);
+                stopGame(playerData.player, GameScoreTracker.END_TYPE_COMMAND_STOP);
             }
         }
     }
+
 }

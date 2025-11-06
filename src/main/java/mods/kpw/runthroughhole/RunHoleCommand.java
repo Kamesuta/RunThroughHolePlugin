@@ -11,6 +11,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.RayTraceResult;
 
+import mods.kpw.runthroughhole.game.GameScoreTracker;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -109,7 +111,7 @@ public class RunHoleCommand implements CommandExecutor, TabCompleter {
 
         // 各ターゲットに対してゲームを停止
         for (Player target : targets) {
-            plugin.getGameManager().stopGame(target);
+            plugin.getGameManager().stopGame(target, GameScoreTracker.END_TYPE_COMMAND_STOP);
         }
 
         // 結果メッセージ
