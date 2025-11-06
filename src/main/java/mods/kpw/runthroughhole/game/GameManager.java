@@ -11,7 +11,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -51,7 +50,7 @@ public class GameManager {
                     data.cube.handleContinuousBoosting(data.preview);
 
                     // 衝突チェック（Streamで衝突ブロックを取得）
-                    List<CubeBlock> collidedBlocks = data.cube.checkCollision()
+                    List<CubeBlock> collidedBlocks = data.cube.checkCollision(PlayerCube.COLLISION_CHECK_OFFSET, null)
                             .collect(Collectors.toList());
 
                     if (!collidedBlocks.isEmpty()) {

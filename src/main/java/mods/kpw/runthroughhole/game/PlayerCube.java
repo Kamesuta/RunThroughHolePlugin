@@ -28,6 +28,9 @@ public class PlayerCube {
     // 壁判定の範囲定数
     private static final int WALL_RANGE = 2; // 壁判定の範囲（-2から+2まで、5x5範囲）
 
+    // 衝突チェック用の位置オフセット（Z方向に0.5ブロック前方）
+    public static final Vector3f COLLISION_CHECK_OFFSET = new Vector3f(0, 0, 0.5f);
+
     // 複数のブロックを管理
     private List<CubeBlock> blocks;
 
@@ -153,7 +156,7 @@ public class PlayerCube {
     // グリッド位置を移動（XY方向のみ）
     public boolean move(Vector3f delta) {
         // 移動先で衝突するかチェック
-        if (wouldCollideAt(delta)) {
+        if (checkCollision(new Vector3f(COLLISION_CHECK_OFFSET).add(delta), null).findAny().isPresent()) {
             // 衝突する場合は移動をキャンセル
             return false;
         }
@@ -204,7 +207,7 @@ public class PlayerCube {
             isSlowedDown = false;
             slowdownTicks = 0;
         } else if (distanceToWall >= 0 && distanceToWall <= 3.0) {
-            // 3ブロック以内の通れない壁 → 指数関数的減速
+            // 3ブロック以内の通れない壁 → 減速
             isSlowedDown = true;
             slowdownTicks++;
 
@@ -261,7 +264,7 @@ public class PlayerCube {
     // 回転を適用
     public boolean applyRotation(Quaternionf newRotation) {
         // 回転後に衝突するかチェック
-        if (wouldCollideAfterRotation(newRotation)) {
+        if (checkCollision(COLLISION_CHECK_OFFSET, newRotation).findAny().isPresent()) {
             // 衝突する場合は回転をキャンセル
             return false;
         }
@@ -310,16 +313,6 @@ public class PlayerCube {
         }
     }
 
-    // 衝突検出：衝突しているブロックのStreamを返す
-    public Stream<CubeBlock> checkCollision() {
-        return checkCollision(new Vector3f(0, 0, 0), null);
-    }
-
-    // 衝突検出（オフセット指定可能）：衝突しているブロックのStreamを返す
-    public Stream<CubeBlock> checkCollision(Vector3f positionOffset) {
-        return checkCollision(positionOffset, null);
-    }
-
     // 衝突検出（位置オフセットと回転指定可能）：衝突しているブロックのStreamを返す
     public Stream<CubeBlock> checkCollision(Vector3f positionOffset, Quaternionf rotationOffset) {
         // 使用する回転を決定（回転オフセットが指定されていない場合は現在の回転を使用）
@@ -341,18 +334,6 @@ public class PlayerCube {
                             && material != Material.VOID_AIR
                             && material != Material.GLASS;
                 });
-    }
-
-    // 移動先で衝突するかチェック（移動前の判定用）
-    public boolean wouldCollideAt(Vector3f delta) {
-        // checkCollisionを流用して、移動先で衝突するブロックがあるかチェック
-        return checkCollision(delta, null).findAny().isPresent();
-    }
-
-    // 回転後に衝突するかチェック（回転前の判定用）
-    public boolean wouldCollideAfterRotation(Quaternionf newRotation) {
-        // checkCollisionを流用して、回転後に衝突するブロックがあるかチェック
-        return checkCollision(new Vector3f(0, 0, 0), newRotation).findAny().isPresent();
     }
 
     // 穴開き壁を検出：キューブの中心位置を返す（穴がない場合はnull）
@@ -538,8 +519,7 @@ public class PlayerCube {
      */
     public Location findNextWall(double startZ, double endZ) {
         // キューブの現在位置を取得
-        Location currentLocation = getCurrentLocation();
-        Location currentBlockLocation = currentLocation.toBlockLocation();
+        Location currentBlockLocation = getCurrentLocation().toBlockLocation();
 
         // Z座標を前方に探索
         for (int z = (int) Math.floor(startZ); z <= (int) Math.floor(endZ); z++) {
@@ -588,7 +568,7 @@ public class PlayerCube {
     public double getDistanceToNextWall() {
         // 現在位置から前方5ブロック以内の壁を探索
         Location currentLocation = getCurrentLocation();
-        double startZ = currentLocation.getZ();
+        double startZ = currentLocation.getBlockZ();
         double endZ = startZ + 5.0;
 
         // 前方の壁を探索
