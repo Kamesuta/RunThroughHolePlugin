@@ -228,11 +228,20 @@ public class HolePreview {
 
     /**
      * プレビューパネルが緑（通れる状態）かどうかを取得
-     * 
+     *
      * @return 通れる場合はtrue、通れない場合はfalse、まだ判定されていない場合はnull
      */
     public Boolean isPreviewGreen() {
         return lastCanPassThrough;
+    }
+
+    /**
+     * 穴通過状態を取得（CubePreviewと共有するため）
+     *
+     * @return 穴通過状態
+     */
+    public HoleState getHoleState() {
+        return holeState;
     }
 
     /**

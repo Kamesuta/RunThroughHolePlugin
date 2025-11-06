@@ -1,17 +1,17 @@
 package mods.kpw.runthroughhole.game;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.BlockDisplay;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Transformation;
 import org.joml.Vector2i;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -23,6 +23,7 @@ public class CubePreview {
     private World world;
     private PlayerCube cube;
     private Location baseLocation;
+    private JavaPlugin plugin;
 
     // BlockDisplayを管理（Vector2i位置をキーとする）
     private Map<Vector2i, BlockDisplay> displayMap;
@@ -39,12 +40,19 @@ public class CubePreview {
     // BlockDisplayのTransformation用オフセット
     private static final double BLOCKDISPLAY_HEIGHT_OFFSET = 0;
 
-    public CubePreview(World world, PlayerCube cube, Location baseLocation) {
+    // 完了状態管理
+    private boolean isCompleted = false;
+    private BukkitTask shrinkTask = null; // 縮小アニメーション開始タスク
+    private BukkitTask clearTask = null; // クリア実行タスク
+
+    public CubePreview(World world, PlayerCube cube, Location baseLocation, JavaPlugin plugin, HolePreview holePreview) {
         this.world = world;
         this.cube = cube;
         this.baseLocation = baseLocation;
+        this.plugin = plugin;
         this.displayMap = new HashMap<>();
-        this.holeState = new HoleState();
+        // HolePreviewと同じHoleStateを共有
+        this.holeState = holePreview.getHoleState();
 
         // PlayerCubeの蜂から高さオフセットを取得
         if (cube.getEntity() != null) {
@@ -58,36 +66,29 @@ public class CubePreview {
      * @param tracingManager なぞり管理オブジェクト
      */
     public void update(HoleTracingManager tracingManager) {
-        // キューブの現在位置を取得
-        Location currentLocation = cube.getCurrentLocation();
-
-        // 穴を検出
-        Location holeLocation = cube.detectHole();
-
-        // 穴通過状態を更新（キューブのZ座標を使用）
-        holeState.updateHoleStatus(holeLocation, currentLocation.getZ());
-
         // 穴に入った場合はプレビューを消す
+        // ※HoleStateはHolePreviewと共有しており、HolePreviewが更新する
         if (holeState.isInHole()) {
-            // 穴に入った瞬間
-            if (holeState.hasHoleStateChanged()) {
-                // プレビューをクリア
-                clear();
-            }
+            // プレビューをクリア
+            clear();
+            // 完了状態をリセット
+            isCompleted = false;
             // 通過中はプレビュー処理を停止
+            return;
+        }
+
+        // 完了アニメーション中は更新処理をスキップ
+        if (isCompleted) {
             return;
         }
 
         // tracedHolesを取得
         Set<Vector2i> tracedHoles = tracingManager.getTracedHoles();
 
-        // 現在必要な位置のセットを作成
-        Set<Vector2i> currentPositions = new HashSet<>(tracedHoles);
-
         // 新しく追加されたブロックにBlockDisplayを作成
-        for (Vector2i pos : currentPositions) {
+        for (Vector2i pos : tracedHoles) {
             if (!displayMap.containsKey(pos)) {
-                BlockDisplay display = createPreviewPanel(pos);
+                BlockDisplay display = createPreviewPanel(pos, Material.LIGHT_BLUE_STAINED_GLASS);
                 displayMap.put(pos, display);
                 // PlayerCubeの蜂にマウント
                 if (cube.getEntity() != null) {
@@ -96,30 +97,72 @@ public class CubePreview {
             }
         }
 
-        // 不要になったBlockDisplayを削除
-        List<Vector2i> toRemove = new ArrayList<>();
-        for (Vector2i pos : displayMap.keySet()) {
-            if (!currentPositions.contains(pos)) {
-                BlockDisplay display = displayMap.get(pos);
-                display.remove();
-                toRemove.add(pos);
+        // 完了状態をチェック（通常の更新処理が終わった後に実行）
+        boolean completed = tracingManager.isCompleted();
+        if (completed && !isCompleted) {
+            // 完了した瞬間
+            isCompleted = true;
+            // すべてのブロックを緑に変更
+            changeAllBlocksColor(Material.LIME_STAINED_GLASS);
+            // 0.5秒後に消去するタスクをスケジュール
+            scheduleClear();
+        }
+    }
+
+    /**
+     * すべてのブロックの色を変更
+     *
+     * @param material 変更後のマテリアル
+     */
+    private void changeAllBlocksColor(Material material) {
+        for (BlockDisplay display : displayMap.values()) {
+            display.setBlock(material.createBlockData());
+        }
+    }
+
+    /**
+     * 0.5秒待ってから0.5秒かけてサイズを0にしてクリアするタスクをスケジュール
+     */
+    private void scheduleClear() {
+        // 既存のタスクがあればキャンセル
+        if (shrinkTask != null && !shrinkTask.isCancelled()) {
+            shrinkTask.cancel();
+        }
+        if (clearTask != null && !clearTask.isCancelled()) {
+            clearTask.cancel();
+        }
+
+        // 0.5秒後にInterpolationを開始
+        shrinkTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            // すべてのBlockDisplayにInterpolationを設定してサイズを0にする
+            for (BlockDisplay display : displayMap.values()) {
+                Transformation transformation = display.getTransformation();
+                // スケールを0にする
+                transformation.getScale().set(0f, 0f, 0f);
+                display.setTransformation(transformation);
+                // 0.5秒（10tick）かけてスケールを0にする
+                display.setInterpolationDuration(10);
+                display.setInterpolationDelay(0);
             }
-        }
-        for (Vector2i pos : toRemove) {
-            displayMap.remove(pos);
-        }
+        }, 10L);
+
+        // 1秒後（0.5秒待機 + 0.5秒アニメーション = 20tick後）にクリア
+        clearTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            clear();
+        }, 20L);
     }
 
     /**
      * プレビューパネルを作成
      *
      * @param pos 2次元位置（X, Y）
+     * @param material ブロックのマテリアル
      * @return 作成されたBlockDisplay
      */
-    private BlockDisplay createPreviewPanel(Vector2i pos) {
+    private BlockDisplay createPreviewPanel(Vector2i pos, Material material) {
         // BlockDisplayをスポーン
         BlockDisplay display = world.spawn(baseLocation, BlockDisplay.class);
-        display.setBlock(Material.LIGHT_BLUE_STAINED_GLASS.createBlockData());
+        display.setBlock(material.createBlockData());
         display.setBrightness(new BlockDisplay.Brightness(15, 15));
 
         // Transformationを設定
@@ -159,6 +202,16 @@ public class CubePreview {
             display.remove();
         }
         displayMap.clear();
+
+        // すべてのタスクをキャンセル
+        if (shrinkTask != null && !shrinkTask.isCancelled()) {
+            shrinkTask.cancel();
+            shrinkTask = null;
+        }
+        if (clearTask != null && !clearTask.isCancelled()) {
+            clearTask.cancel();
+            clearTask = null;
+        }
     }
 
     /**
