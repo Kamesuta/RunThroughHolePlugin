@@ -219,7 +219,7 @@ public class PlayerCube {
                 // 線形減速: 距離に応じて一定割合で速度が落ちる
                 // distance=3.0で100%、distance=0.0で約3%の速度
                 // slowFactor = distance / 3.0
-                double slowFactor = distanceToWall / 3.0;
+                double slowFactor = (distanceToWall - 1) / 3.0;
 
                 // 基本速度に減速係数を適用
                 float baseSpeed = isBoosting ? BOOST_SPEED : FORWARD_SPEED;
@@ -568,7 +568,7 @@ public class PlayerCube {
     public double getDistanceToNextWall() {
         // 現在位置から前方5ブロック以内の壁を探索
         Location currentLocation = getCurrentLocation();
-        double startZ = currentLocation.getBlockZ();
+        double startZ = currentLocation.getZ();
         double endZ = startZ + 5.0;
 
         // 前方の壁を探索
@@ -621,7 +621,7 @@ public class PlayerCube {
      */
     public boolean shouldShowWarning() {
         double distance = getDistanceToNextWall();
-        // 1.5ブロック以内 & 通れない壁の場合
-        return distance >= 0 && distance <= 1.5;
+        // 3ブロック以内 & 通れない壁の場合
+        return distance >= 0 && distance <= 3;
     }
 }

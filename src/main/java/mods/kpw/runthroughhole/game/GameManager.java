@@ -112,8 +112,8 @@ public class GameManager {
             // 距離に応じてボスバーの進行度を更新
             double distance = data.cube.getDistanceToNextWall();
             if (distance >= 0) {
-                // 距離1.5ブロック → 0%、距離0.0ブロック → 100%
-                double progress = 1.0 - (distance / 1.5);
+                // 距離3ブロック → 0%、距離0.0ブロック → 100%
+                double progress = 1.0 - ((distance - 1) / 3.0);
                 progress = Math.max(0.0, Math.min(1.0, progress)); // 0.0～1.0にクランプ
                 data.warningBossBar.setProgress(progress);
             }
