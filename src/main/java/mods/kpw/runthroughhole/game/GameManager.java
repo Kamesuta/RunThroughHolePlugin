@@ -67,7 +67,7 @@ public class GameManager {
                     if (!collidedBlocks.isEmpty()) {
                         // プレイヤーを取得
                         if (player != null) {
-                            gameOver(data, "ブロックに衝突しました！", collidedBlocks);
+                            gameOver(data, collidedBlocks, GameScoreTracker.END_TYPE_GAME_OVER);
                         }
                         continue;
                     }
@@ -300,12 +300,12 @@ public class GameManager {
 
     /**
      * ゲームオーバー処理（衝突ブロックあり）
-     * 
+     *
      * @param playerData     プレイヤーデータ
-     * @param reason         ゲームオーバーの理由
      * @param collidedBlocks 衝突したブロックのリスト
+     * @param endType        終了タイプ
      */
-    public void gameOver(PlayerData playerData, String reason, List<CubeBlock> collidedBlocks) {
+    public void gameOver(PlayerData playerData, List<CubeBlock> collidedBlocks, int endType) {
         Player player = playerData.player;
         if (player == null) {
             plugin.getLogger().warning("PlayerDataにPlayerが設定されていません");
@@ -364,8 +364,7 @@ public class GameManager {
         // スコアボード更新（データパックがこれをトリガーにする）
         playerData.scoreTracker.setScore(GameScoreTracker.OBJECTIVE_GAME_STATE,
                                          GameScoreTracker.GAME_STATE_GAME_END);
-        playerData.scoreTracker.setScore(GameScoreTracker.OBJECTIVE_END_TYPE,
-                                         GameScoreTracker.END_TYPE_GAME_OVER);
+        playerData.scoreTracker.setScore(GameScoreTracker.OBJECTIVE_END_TYPE, endType);
 
         // タイトル表示、メッセージ送信、stopGame呼び出しはデータパック側で処理
         // データパック側が3秒後に /rth stop <player> を実行する

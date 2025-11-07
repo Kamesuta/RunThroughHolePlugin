@@ -217,9 +217,9 @@ public class PlayerGameListener implements Listener {
     // WASD入力を処理
     private void handleWASDInput(PlayerData playerData, boolean left, boolean right, boolean forward, boolean backward,
             boolean jump, boolean shift) {
-        // Shiftキーが押された場合はゲーム終了
-        if (shift) {
-            plugin.getGameManager().stopGame(playerData.player, GameScoreTracker.END_TYPE_PLAYER_QUIT);
+        // Shiftキーが押された場合はゲームオーバー処理（3秒スペクテーターモード）
+        if (shift && !playerData.isGameOver) {
+            plugin.getGameManager().gameOver(playerData, new java.util.ArrayList<>(), GameScoreTracker.END_TYPE_PLAYER_QUIT);
             return;
         }
 
