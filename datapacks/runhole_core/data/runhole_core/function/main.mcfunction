@@ -24,3 +24,4 @@ execute as @a[scores={runhole_game_state=1}] run function runhole_core:message/p
 
 # ゲーム開始時にメッセージフラグをリセット（game_state=1でmsg_shown>=2の場合）
 execute as @a[scores={runhole_game_state=1,runhole_msg_shown=2..}] run scoreboard players reset @s runhole_msg_shown
+execute as @a[scores={runhole_game_state=1,runhole_msg_shown=2..}] run scoreboard players reset @s runhole_milestone_shown
