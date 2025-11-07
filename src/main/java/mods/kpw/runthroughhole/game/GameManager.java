@@ -47,6 +47,14 @@ public class GameManager {
         // 自動前進タスクを開始（1tickごと）
         gameLoopTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
             for (PlayerData data : playerDataManager.getAllPlayerData()) {
+                // データパックからのstopGameリクエストをチェック
+                Player player = data.player;
+                if (player != null && data.scoreTracker.getScore("runhole_stop_request") == 1) {
+                    data.scoreTracker.setScore("runhole_stop_request", 0);
+                    stopGame(player, GameScoreTracker.END_TYPE_COMMAND_STOP);
+                    continue;
+                }
+
                 if (data.cube != null && !data.isGameOver) {
                     // キューブを前進
                     data.cube.autoForward();
@@ -58,7 +66,6 @@ public class GameManager {
 
                     if (!collidedBlocks.isEmpty()) {
                         // プレイヤーを取得
-                        Player player = data.player;
                         if (player != null) {
                             gameOver(data, "ブロックに衝突しました！", collidedBlocks);
                         }
@@ -214,16 +221,10 @@ public class GameManager {
         }
         player.getInventory().setItemInOffHand(new ItemStack(Material.STONE_BUTTON));
 
-        // 操作説明を表示
-        player.sendMessage("§6§l========== 穴抜けゲーム開始 ==========");
-        player.sendMessage("§c§l目標: §f壁に当たらないように進み続けよう！");
-        player.sendMessage("§e§l【移動操作】");
-        player.sendMessage("§a  W/A/S/D §f- 上下左右に移動");
-        player.sendMessage("§a  Space §f- 加速（長押し可能）");
-        player.sendMessage("§e§l【回転操作】");
-        player.sendMessage("§a  視点を上下左右に動かす §f- キューブをX/Y回転");
-        player.sendMessage("§a  左右クリック §f- キューブをZ回転");
-        player.sendMessage("§6§l=====================================");
+        // ゲーム時間タイマーを初期化（データパック側で使用）
+        playerData.scoreTracker.setScore("runhole_game_time", 0);
+
+        // 操作説明やメッセージはデータパック側で表示
 
         plugin.getLogger().info(player.getName() + "がゲームを開始しました。");
     }
@@ -286,6 +287,13 @@ public class GameManager {
             plugin.getLogger().info(player.getName() + "のゲームモードを" + playerData.originalGameMode + "に戻しました");
         }
 
+        // スコアボードを0にリセット（データパック側の処理を停止）
+        if (playerData.scoreTracker != null) {
+            playerData.scoreTracker.setScore(GameScoreTracker.OBJECTIVE_GAME_STATE, GameScoreTracker.GAME_STATE_NOT_PLAYING);
+            playerData.scoreTracker.setScore("runhole_stop_request", 0);
+            playerData.scoreTracker.setScore("runhole_spectator_timer", 0);
+        }
+
         player.sendMessage("ゲームを終了しました。");
         plugin.getLogger().info(player.getName() + "がゲームを終了しました。");
     }
@@ -336,16 +344,6 @@ public class GameManager {
             }
         }
 
-        // タイトルに「GAME OVER」を表示
-        Title title = Title.title(
-                Component.text("GAME OVER", NamedTextColor.RED),
-                Component.text(reason, NamedTextColor.YELLOW),
-                Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500)));
-        player.showTitle(title);
-
-        // メッセージを送信
-        player.sendMessage(Component.text("ゲームオーバー: " + reason, NamedTextColor.RED));
-
         // すぐにプレイヤーを降車させて、衝突原因を振り返れるようにする
         if (playerData.camera != null) {
             // 椅子の現在位置を取得
@@ -363,10 +361,14 @@ public class GameManager {
             plugin.getLogger().info(player.getName() + "を降車させました（スペクテーターモードで振り返り可能）");
         }
 
-        // 少し遅延してゲームを終了
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            stopGame(player, GameScoreTracker.END_TYPE_GAME_OVER);
-        }, 60L); // 3秒後（60tick）
+        // スコアボード更新（データパックがこれをトリガーにする）
+        playerData.scoreTracker.setScore(GameScoreTracker.OBJECTIVE_GAME_STATE,
+                                         GameScoreTracker.GAME_STATE_GAME_END);
+        playerData.scoreTracker.setScore(GameScoreTracker.OBJECTIVE_END_TYPE,
+                                         GameScoreTracker.END_TYPE_GAME_OVER);
+
+        // タイトル表示、メッセージ送信、stopGame呼び出しはデータパック側で処理
+        // データパック側が3秒後に /rth stop <player> を実行する
     }
 
     /**
