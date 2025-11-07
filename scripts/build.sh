@@ -3,4 +3,8 @@
 set -e
 
 # Mavenでプロジェクトをパッケージ化し、成功すればプラグインをコピー
-mvn package && copy_plugin.sh
+mvn clean package && copy_plugin.sh
+
+# データパックを同期
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$SCRIPT_DIR/sync_datapacks.sh"
